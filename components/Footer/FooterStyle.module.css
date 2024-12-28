@@ -1,0 +1,66 @@
+/* Footer main container */
+.footer {
+  background-color: #2C3E50;
+  color: #ffffff;
+  padding: 40px 20px;
+  text-align: left;
+}
+
+/* Container for the footer sections */
+.container {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 30px;
+  flex-wrap: wrap; /* Makes the layout responsive */
+}
+
+/* Individual footer sections (About Us, Contact) */
+.section {
+  flex: 1;
+  margin: 0 20px;
+  max-width: 400px; /* Ensures sections don't stretch too wide */
+}
+
+.title {
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 15px;
+  color: #f1c40f; /* Golden color for titles */
+}
+
+.content {
+  font-size: 14px;
+  line-height: 1.6;
+  margin-bottom: 10px;
+}
+
+/* Styling the copyright section */
+.copyright {
+  text-align: center;
+  margin-top: 30px;
+  font-size: 14px;
+  color: #BDC3C7;
+}
+
+/* Hover effect for content */
+.content:hover {
+  color: #f1c40f;
+  cursor: pointer;
+  transition: color 0.3s ease;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .container {
+      flex-direction: column;
+      align-items: center;
+  }
+
+  .section {
+      margin-bottom: 20px;
+  }
+
+  .copyright {
+      margin-top: 20px;
+  }
+}
