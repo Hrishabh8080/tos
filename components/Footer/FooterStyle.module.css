@@ -1,6 +1,6 @@
 /* Footer main container */
 .footer {
-  background-color: #2C3E50;
+  background-color: var(--primary-color);
   color: #ffffff;
   padding: 40px 20px;
   text-align: left;
@@ -32,6 +32,16 @@
   font-size: 14px;
   line-height: 1.6;
   margin-bottom: 10px;
+  font-size: 16px;
+}
+.content a{
+  color: #ffffff;
+  text-decoration: none;
+}
+.content a:hover{
+  text-decoration: underline;
+  cursor: pointer;
+  transition: color 0.3s ease;
 }
 
 /* Styling the copyright section */
@@ -40,13 +50,6 @@
   margin-top: 30px;
   font-size: 14px;
   color: #BDC3C7;
-}
-
-/* Hover effect for content */
-.content:hover {
-  color: #f1c40f;
-  cursor: pointer;
-  transition: color 0.3s ease;
 }
 
 /* Responsive design */

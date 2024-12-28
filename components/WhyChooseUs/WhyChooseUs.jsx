@@ -27,7 +27,7 @@ const qualityAttributes = [
     },
     {
         key: "Industry Expertise",
-        value: "With over 10 years of experience, we are trusted by businesses and contractors across industries to deliver the best products for their projects.",
+        value: "With over 7 years of experience, we are trusted by businesses and contractors across industries to deliver the best products for their projects.",
         svg: Industry
     },
     {

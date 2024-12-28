@@ -1,6 +1,6 @@
-"use client"
+"use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import styles from "./ContactForm.module.css";
 
 const ContactForm = () => {
@@ -9,69 +9,112 @@ const ContactForm = () => {
         mobile: "",
         email: "",
         company: "",
-        message: ""
+        message: "",
     });
 
     const [errors, setErrors] = useState({
+        name: "",
         mobile: "",
+        message: "",
     });
+
+    const [isFormValid, setIsFormValid] = useState(false);
+    const [isLoading, setIsLoading] = useState(false);  // New state for loading
 
     const handleInputChange = (e) => {
         const { name, value } = e.target;
         setFormData({
             ...formData,
-            [name]: value
+            [name]: value,
         });
     };
 
-    const handleSubmit = (e) => {
-        e.preventDefault();
+    // Validation function
+    const validateForm = () => {
+        const newErrors = {};
 
-        // Form data collection
-        const formElm = document.getElementById("SubmitResponce");
-        const formData = new FormData(formElm);
-
-        // Convert FormData to an object
-        const formDataObj = {};
-        formData.forEach((value, key) => {
-            formDataObj[key] = value;
-        });
-
-        // Mobile number validation
-        const mobileRegex = /^[0-9]{10}$/;
-        if (!mobileRegex.test(formDataObj.mobile)) {
-            setErrors({ ...errors, mobile: "Please enter a valid 10-digit mobile number." });
-            return;
+        // Validate Name
+        if (!formData.name) {
+            newErrors.name = "Full name is required.";
         }
 
-        const link = "";
-        fetch(link, {
-            method: "POST",
-            body: formData,
-        })
-            .then((response) => {
-                if (response.ok) {
-                    console.log(response);
-                    formElm.reset();
-                    alert("Form submitted successfully!");
-                    setFormData({
-                        name: "",
-                        mobile: "",
-                        email: "",
-                        company: "",
-                        message: ""
-                    });
-                } else {
-                    alert("Failed to submit the form");
-                }
-            })
-            .catch((error) => {
-                console.error("Error:", error);
-                alert("There was an error submitting the form.");
-            });
+        // Validate Mobile
+        const mobileRegex = /^[0-9]{10}$/;
+        if (formData.mobile && !mobileRegex.test(formData.mobile)) {
+            newErrors.mobile = "Please enter a valid 10-digit mobile number.";
+        }
 
+        // Validate Message
+        if (!formData.message) {
+            newErrors.message = "Message is required.";
+        }
 
+        setErrors(newErrors);
+
+        // Check if all required fields are valid
+        setIsFormValid(
+            formData.name &&
+            formData.mobile &&
+            formData.message &&
+            !newErrors.name &&
+            !newErrors.mobile &&
+            !newErrors.message
+        );
     };
+
+    useEffect(() => {
+        validateForm();
+    }, [formData]);
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+
+        setIsLoading(true);  // Show the loader when form is submitting
+
+        const formattedTime = formatDateTime(new Date());
+
+        const formDataObj = { ...formData, time: formattedTime };
+
+        try {
+            const response = await fetch("https://script.google.com/macros/s/AKfycbyWQy8Mx5827qmSsA5bHpzQgAKWG09Z1gnfe1QV2uALFpPpY83xttfogmTg-oGhGYC3/exec",
+                {
+                    method: "POST",
+                    body: new URLSearchParams(formDataObj),
+                }
+            );
+
+            if (response.ok) {
+                alert("Data submitted successfully! We will contact you within 24 to 48 hours.");
+                setFormData({
+                    name: "",
+                    mobile: "",
+                    email: "",
+                    company: "",
+                    message: "",
+                });
+            } else {
+                alert("Failed to submit the form");
+            }
+        } catch (error) {
+            console.error("Error:", error);
+            alert("There was an error submitting the form.");
+        } finally {
+            setIsLoading(false);  // Hide the loader after submission is complete
+        }
+    };
+
+    // Helper function to format date as 'yyyy-mm-dd HH:MM:SS'
+    const formatDateTime = (date) => {
+        const year = date.getFullYear();
+        const month = (date.getMonth() + 1).toString().padStart(2, '0');
+        const day = date.getDate().toString().padStart(2, '0');
+        const hours = date.getHours().toString().padStart(2, '0');
+        const minutes = date.getMinutes().toString().padStart(2, '0');
+        const seconds = date.getSeconds().toString().padStart(2, '0');
+
+        return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+    };
+
 
     return (
         <section id="contact-us" className={styles.contactFormContainer}>
@@ -88,6 +131,7 @@ const ContactForm = () => {
                         className={styles.input}
                         required
                     />
+                    {errors.name && <span className={styles.error}>{errors.name}</span>}
                 </div>
 
                 <div className={styles.formGroup}>
@@ -139,9 +183,19 @@ const ContactForm = () => {
                         className={styles.textarea}
                         required
                     ></textarea>
+                    {errors.message && <span className={styles.error}>{errors.message}</span>}
                 </div>
 
-                <button type="submit" className={styles.submitButton}>Submit</button>
+                <button
+                    type="submit"
+                    className={`${styles.submitButton}   ${!isFormValid || isLoading ? styles.disabled : ""}`}
+                    disabled={!isFormValid || isLoading}
+                >
+                    Submit
+                    {isLoading ? (
+                        <div className={styles.loader}></div>
+                    ) : ""}
+                </button>
             </form>
         </section>
     );

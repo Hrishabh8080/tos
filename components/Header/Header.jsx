@@ -11,7 +11,8 @@ const Header = () => {
         { name: 'Home', path: '/' },
         { name: 'About', path: '#about' },
         { name: 'Why Choose Us', path: '#why-choose-us' },
-        { name: 'Our Client', path: '#our-client' },
+        // { name: 'Our Client', path: '#our-client' },
+        { name: 'Testimonial', path: '#testimonial' },
         { name: 'Contact', path: '#contact-us' }
     ];
 
@@ -31,7 +32,7 @@ const Header = () => {
     return (
         <header className={CSS.header}>
             <div className={CSS.left}>
-                <h1 className={CSS.title}>TOS</h1>
+                <h1 className={CSS.title}>TOTAL OFFICE SOLUTIONS</h1>
             </div>
             <nav className={CSS.right}>
                 {/* Mobile Menu */}

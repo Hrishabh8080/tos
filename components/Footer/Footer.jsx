@@ -11,9 +11,20 @@ const footerSections = [
         title: "Contact",
         content: (
             <>
-                <p className={CSS.content}>Email: totalofficesolutions85@gmail.com</p>
-                <p className={CSS.content}>Phone: +91-9911491624, +91-9990901524</p>
-                <p className={CSS.content}>Address: Office NO 2 ASHOK VIHAR PHASE II GURGAON</p>
+                <>
+                    <p className={CSS.content}>
+                        <b>Email: </b>
+                        <a href="mailto:support@toselectricals.com">support@toselectricals.com</a>
+                    </p>
+                    <p className={CSS.content}>
+                        <b>Phone: </b>
+                        <a href="tel:+919911491624">+91-9911491624</a>,
+                        <a href="tel:+919990901524">+91-9990901524</a>
+                    </p>
+                    <p className={CSS.content}>
+                        <b>Address: </b> Office No. 2, Ashok Vihar Phase II, Near Shiv Shakti Mandir, Gurgaon, Haryana, India
+                    </p>
+                </>
             </>
         )
     },
@@ -31,7 +42,7 @@ const Footer = () => {
                 ))}
             </div>
             <div className={CSS.copyright}>
-                <p>© 2024 TOS. All rights reserved.</p>
+                <p>© 2025 TOTAL OFFICE SOLUTIONS. All rights reserved.</p>
             </div>
         </footer>
     );
