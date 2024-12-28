@@ -12,17 +12,16 @@
 
 @media (max-width: 768px) {
 
-    .carouselContainer {
-        :global(.slick-dots) {
-            width: 60%;
-            overflow-y: auto;
-            white-space: nowrap;
-            scrollbar-width: none;
-            max-width: 60%;
-            margin: auto;
-            left: 20%;
-        }
+    .carouselContainer :global(.slick-dots) {
+        width: 60%;
+        overflow-y: auto;
+        white-space: nowrap;
+        scrollbar-width: none;
+        max-width: 60%;
+        margin: auto;
+        left: 20%;
     }
+
 
     .carouselImage {
         height: 300px;
