@@ -11,21 +11,24 @@
   display: flex;
   justify-content: space-between;
   margin-bottom: 30px;
-  flex-wrap: wrap; /* Makes the layout responsive */
+  flex-wrap: wrap;
+  /* Makes the layout responsive */
 }
 
 /* Individual footer sections (About Us, Contact) */
 .section {
   flex: 1;
   margin: 0 20px;
-  max-width: 400px; /* Ensures sections don't stretch too wide */
+  max-width: 400px;
+  /* Ensures sections don't stretch too wide */
 }
 
 .title {
   font-size: 18px;
   font-weight: 600;
   margin-bottom: 15px;
-  color: #f1c40f; /* Golden color for titles */
+  color: #f1c40f;
+  /* Golden color for titles */
 }
 
 .content {
@@ -34,11 +37,13 @@
   margin-bottom: 10px;
   font-size: 16px;
 }
-.content a{
+
+.content a {
   color: #ffffff;
   text-decoration: none;
 }
-.content a:hover{
+
+.content a:hover {
   text-decoration: underline;
   cursor: pointer;
   transition: color 0.3s ease;
@@ -55,15 +60,15 @@
 /* Responsive design */
 @media (max-width: 768px) {
   .container {
-      flex-direction: column;
-      align-items: center;
+    flex-direction: column;
+    align-items: center;
   }
 
   .section {
-      margin-bottom: 20px;
+    margin-bottom: 20px;
   }
 
   .copyright {
-      margin-top: 20px;
+    margin-top: 20px;
   }
 }
