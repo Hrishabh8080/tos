@@ -32,7 +32,7 @@ const Header = () => {
     return (
         <header className={CSS.header}>
             <div className={CSS.left}>
-                <h1 className={CSS.title}>TOTAL OFFICE SOLUTIONS</h1>
+                <h1 className={CSS.title}>Total Office Solutions</h1>
             </div>
             <nav className={CSS.right}>
                 {/* Mobile Menu */}
