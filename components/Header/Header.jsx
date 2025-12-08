@@ -1,19 +1,31 @@
 "use client"
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import CSS from "./HeaderStyle.module.css";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 const Header = () => {
+    const pathname = usePathname();
     const [activeNav, setActiveNav] = useState('Home');
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
+    useEffect(() => {
+        // Set active nav based on current pathname
+        if (pathname === '/') {
+            setActiveNav('Home');
+        } else if (pathname === '/products') {
+            setActiveNav('Products');
+        }
+    }, [pathname]);
+
     const navItems = [
         { name: 'Home', path: '/' },
-        { name: 'About', path: '#about' },
-        { name: 'Why Choose Us', path: '#why-choose-us' },
-        // { name: 'Our Client', path: '#our-client' },
-        { name: 'Testimonial', path: '#testimonial' },
-        { name: 'Contact', path: '#contact-us' }
+        { name: 'Products', path: '/products' },
+        { name: 'About', path: '/#about' },
+        { name: 'Why Choose Us', path: '/#why-choose-us' },
+        // { name: 'Our Client', path: '/#our-client' },
+        { name: 'Testimonial', path: '/#testimonial' },
+        { name: 'Contact', path: '/#contact-us' }
     ];
 
     const handleNavClick = (navItem) => {

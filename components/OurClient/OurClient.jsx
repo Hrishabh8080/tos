@@ -55,15 +55,28 @@ const OurClient = ({ type }) => {
             <div className={styles.head}>
                 {type === 1 ? 'Our Distributors' : 'Our Clients'}
             </div>
-            <div className={styles.container}>
-                {imagesToShow.map((image, index) => (
-                    <Image
-                        key={index}
-                        width={120}
-                        src={image.src}
-                        alt={image.alt}
-                    />
-                ))}
+            <div className={styles.scrollContainer}>
+                <div className={styles.scrollContent}>
+                    {imagesToShow.map((image, index) => (
+                        <div key={index} className={styles.logoItem}>
+                            <Image
+                                width={120}
+                                src={image.src}
+                                alt={image.alt}
+                            />
+                        </div>
+                    ))}
+                    {/* Duplicate for seamless loop */}
+                    {imagesToShow.map((image, index) => (
+                        <div key={`duplicate-${index}`} className={styles.logoItem}>
+                            <Image
+                                width={120}
+                                src={image.src}
+                                alt={image.alt}
+                            />
+                        </div>
+                    ))}
+                </div>
             </div>
         </section>
     );
