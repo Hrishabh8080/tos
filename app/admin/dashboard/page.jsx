@@ -54,6 +54,18 @@ export default function AdminDashboard() {
         }),
       ]);
 
+      // Check if response is JSON before parsing
+      const productsContentType = productsRes.headers.get('content-type');
+      const categoriesContentType = categoriesRes.headers.get('content-type');
+
+      if (!productsRes.ok || !productsContentType?.includes('application/json')) {
+        throw new Error(`Failed to fetch products: ${productsRes.status}`);
+      }
+
+      if (!categoriesRes.ok || !categoriesContentType?.includes('application/json')) {
+        throw new Error(`Failed to fetch categories: ${categoriesRes.status}`);
+      }
+
       const productsData = await productsRes.json();
       const categoriesData = await categoriesRes.json();
 
@@ -61,6 +73,9 @@ export default function AdminDashboard() {
       setCategories(categoriesData);
     } catch (error) {
       console.error('Error fetching data:', error);
+      // Set empty arrays on error to prevent crashes
+      setProducts([]);
+      setCategories([]);
     } finally {
       setLoading(false);
     }

@@ -54,16 +54,29 @@ export default function ProductsPage() {
         }),
       });
 
-      if (response.ok) {
-        setRequestSent(true);
-        alert('Thank you! We will contact you soon.');
-        setMobileNumber('');
+      // Check if response is JSON before parsing (if needed)
+      const contentType = response.headers.get('content-type');
+      if (contentType?.includes('application/json')) {
+        const data = await response.json();
+        if (response.ok) {
+          setRequestSent(true);
+          alert('Thank you! We will contact you soon.');
+          setMobileNumber('');
+        } else {
+          alert(data.message || 'Failed to send request. Please try again.');
+        }
       } else {
-        alert('Failed to send request. Please try again.');
+        if (response.ok) {
+          setRequestSent(true);
+          alert('Thank you! We will contact you soon.');
+          setMobileNumber('');
+        } else {
+          alert('Failed to send request. Please ensure the API server is running.');
+        }
       }
     } catch (error) {
       console.error('Error sending contact request:', error);
-      alert('Error sending request. Please try again.');
+      alert('Error sending request. Please ensure the API server is running on port 3001.');
     } finally {
       setSendingRequest(false);
     }
@@ -84,6 +97,18 @@ export default function ProductsPage() {
         fetch('http://localhost:3001/api/categories'),
       ]);
 
+      // Check if response is JSON before parsing
+      const productsContentType = productsRes.headers.get('content-type');
+      const categoriesContentType = categoriesRes.headers.get('content-type');
+
+      if (!productsRes.ok || !productsContentType?.includes('application/json')) {
+        throw new Error(`Failed to fetch products: ${productsRes.status}`);
+      }
+
+      if (!categoriesRes.ok || !categoriesContentType?.includes('application/json')) {
+        throw new Error(`Failed to fetch categories: ${categoriesRes.status}`);
+      }
+
       const productsData = await productsRes.json();
       const categoriesData = await categoriesRes.json();
 
@@ -92,6 +117,10 @@ export default function ProductsPage() {
       setFilteredProducts(productsData);
     } catch (error) {
       console.error('Error fetching data:', error);
+      // Set empty arrays on error to prevent crashes
+      setProducts([]);
+      setCategories([]);
+      setFilteredProducts([]);
     } finally {
       setLoading(false);
     }

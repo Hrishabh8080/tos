@@ -32,6 +32,12 @@ export default function AdminLogin() {
         body: JSON.stringify({ email, password }),
       });
 
+      // Check if response is JSON before parsing
+      const contentType = response.headers.get('content-type');
+      if (!contentType?.includes('application/json')) {
+        throw new Error('Server returned non-JSON response. Please check if the API server is running.');
+      }
+
       const data = await response.json();
 
       if (response.ok) {
@@ -42,7 +48,8 @@ export default function AdminLogin() {
         setError(data.message || 'Login failed');
       }
     } catch (error) {
-      setError('Network error. Please try again.');
+      console.error('Login error:', error);
+      setError(error.message || 'Network error. Please ensure the API server is running on port 3001.');
     } finally {
       setLoading(false);
     }
