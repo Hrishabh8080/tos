@@ -2,9 +2,9 @@
 import React, { useState, useEffect } from "react";
 import styles from "./Carousel.module.css"; // Import the CSS module
 
-import Img1 from "../../assets/images/01.jpeg";
-import Img2 from "../../assets/images/02.jpeg";
-import Img3 from "../../assets/images/03.jpeg";  
+import Img1 from "../../assets/images/01.jpg";
+import Img2 from "../../assets/images/02.jpg";
+import Img3 from "../../assets/images/03.jpg";  
 import Img4 from "../../assets/images/04.jpeg";
 import Img5 from "../../assets/images/05.jpeg";
 import Img6 from "../../assets/images/06.jpg";
@@ -22,6 +22,8 @@ const Carousel = () => {
         slidesToShow: 1,
         slidesToScroll: 1,
         autoplay: true,
+        autoplaySpeed: 2000,
+        speed: 800,
         cssEase: "linear"
     };
 
