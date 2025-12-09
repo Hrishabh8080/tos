@@ -101,20 +101,25 @@ export default function ProductsPage() {
       const productsContentType = productsRes.headers.get('content-type');
       const categoriesContentType = categoriesRes.headers.get('content-type');
 
-      if (!productsRes.ok || !productsContentType?.includes('application/json')) {
-        throw new Error(`Failed to fetch products: ${productsRes.status}`);
+      // Handle products response
+      if (productsRes.ok && productsContentType?.includes('application/json')) {
+        const productsData = await productsRes.json();
+        setProducts(productsData);
+        setFilteredProducts(productsData);
+      } else {
+        console.warn(`Failed to fetch products: ${productsRes.status} ${productsRes.statusText}`);
+        setProducts([]);
+        setFilteredProducts([]);
       }
 
-      if (!categoriesRes.ok || !categoriesContentType?.includes('application/json')) {
-        throw new Error(`Failed to fetch categories: ${categoriesRes.status}`);
+      // Handle categories response
+      if (categoriesRes.ok && categoriesContentType?.includes('application/json')) {
+        const categoriesData = await categoriesRes.json();
+        setCategories(categoriesData);
+      } else {
+        console.warn(`Failed to fetch categories: ${categoriesRes.status} ${categoriesRes.statusText}`);
+        setCategories([]);
       }
-
-      const productsData = await productsRes.json();
-      const categoriesData = await categoriesRes.json();
-
-      setProducts(productsData);
-      setCategories(categoriesData);
-      setFilteredProducts(productsData);
     } catch (error) {
       console.error('Error fetching data:', error);
       // Set empty arrays on error to prevent crashes
