@@ -12,9 +12,13 @@ export default function AdminLogin() {
 
   useEffect(() => {
     // Check if already logged in
+    try {
     const token = localStorage.getItem('adminToken');
     if (token) {
       router.push('/admin/dashboard');
+      }
+    } catch (error) {
+      // Continue to login page if localStorage is unavailable
     }
   }, [router]);
 
@@ -24,7 +28,7 @@ export default function AdminLogin() {
     setLoading(true);
 
     try {
-      const response = await fetch('http://localhost:3001/api/auth/login', {
+      const response = await fetch('/api/auth/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -32,17 +36,27 @@ export default function AdminLogin() {
         body: JSON.stringify({ email, password }),
       });
 
+      // Check if response is JSON before parsing
+      const contentType = response.headers.get('content-type');
+      if (!contentType?.includes('application/json')) {
+        throw new Error('Server returned non-JSON response. Please check if the API server is running.');
+      }
+
       const data = await response.json();
 
       if (response.ok) {
+        try {
         localStorage.setItem('adminToken', data.token);
         localStorage.setItem('adminData', JSON.stringify(data.admin));
         router.push('/admin/dashboard');
+        } catch (storageError) {
+          setError('Login successful but failed to save session. Please try again.');
+        }
       } else {
         setError(data.message || 'Login failed');
       }
     } catch (error) {
-      setError('Network error. Please try again.');
+      setError(error.message || 'Network error. Please try again.');
     } finally {
       setLoading(false);
     }

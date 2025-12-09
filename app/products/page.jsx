@@ -1,7 +1,8 @@
 'use client';
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import Link from 'next/link';
 import Header from '../../components/Header/Header';
+import { deduplicatedFetch } from '@/lib/utils/fetchCache';
 import styles from './Products.module.css';
 
 export default function ProductsPage() {
@@ -10,116 +11,189 @@ export default function ProductsPage() {
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
-  const [filteredProducts, setFilteredProducts] = useState([]);
-  const [selectedProduct, setSelectedProduct] = useState(null);
-  const [showModal, setShowModal] = useState(false);
-  const [mobileNumber, setMobileNumber] = useState('');
-  const [sendingRequest, setSendingRequest] = useState(false);
-  const [requestSent, setRequestSent] = useState(false);
-
-  const openProductDetails = (product) => {
-    setSelectedProduct(product);
-    setShowModal(true);
-    setMobileNumber('');
-    setRequestSent(false);
-  };
-
-  const closeModal = () => {
-    setShowModal(false);
-    setSelectedProduct(null);
-    setMobileNumber('');
-    setRequestSent(false);
-  };
-
-  const handleContactRequest = async () => {
-    if (!mobileNumber || mobileNumber.length < 10) {
-      alert('Please enter a valid mobile number');
-      return;
-    }
-
-    setSendingRequest(true);
-
-    try {
-      const response = await fetch('http://localhost:3001/api/contact-request', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          productName: selectedProduct.name,
-          productId: selectedProduct._id,
-          mobileNumber: mobileNumber,
-          category: selectedProduct.category?.name,
-          price: selectedProduct.price,
-        }),
-      });
-
-      if (response.ok) {
-        setRequestSent(true);
-        alert('Thank you! We will contact you soon.');
-        setMobileNumber('');
-      } else {
-        alert('Failed to send request. Please try again.');
-      }
-    } catch (error) {
-      console.error('Error sending contact request:', error);
-      alert('Error sending request. Please try again.');
-    } finally {
-      setSendingRequest(false);
-    }
-  };
 
   useEffect(() => {
     fetchData();
   }, []);
 
-  useEffect(() => {
-    filterProducts();
-  }, [selectedCategory, searchTerm, products]);
-
-  const fetchData = async () => {
+  const fetchData = async (forceRefresh = false) => {
     try {
+      const CACHE_KEY_PRODUCTS = 'tos_products_cache';
+      const CACHE_KEY_CATEGORIES = 'tos_categories_cache';
+      const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+
+      // Check cache for products
+      if (!forceRefresh) {
+        try {
+          const cachedProducts = sessionStorage.getItem(CACHE_KEY_PRODUCTS);
+          if (cachedProducts) {
+            const parsed = JSON.parse(cachedProducts);
+            if (parsed && parsed.data && parsed.timestamp && Date.now() - parsed.timestamp < CACHE_DURATION) {
+              const validProducts = Array.isArray(parsed.data) ? parsed.data.filter((product) => product && product.category) : [];
+              setProducts(validProducts);
+            } else {
+            }
+          }
+        } catch (cacheError) {
+        }
+      }
+
+      // Check cache for categories
+      if (!forceRefresh) {
+        try {
+          const cachedCategories = sessionStorage.getItem(CACHE_KEY_CATEGORIES);
+          if (cachedCategories) {
+            const parsed = JSON.parse(cachedCategories);
+            if (parsed && parsed.data && parsed.timestamp && Date.now() - parsed.timestamp < CACHE_DURATION) {
+              const validCategories = Array.isArray(parsed.data) ? parsed.data : [];
+            setCategories(validCategories);
+            } else {
+            }
+          }
+        } catch (cacheError) {
+        }
+      }
+
+      // Fetch fresh data if cache is missing or expired (with deduplication)
       const [productsRes, categoriesRes] = await Promise.all([
-        fetch('http://localhost:3001/api/products'),
-        fetch('http://localhost:3001/api/categories'),
+        deduplicatedFetch('/api/products'),
+        deduplicatedFetch('/api/categories'),
       ]);
 
-      const productsData = await productsRes.json();
-      const categoriesData = await categoriesRes.json();
+      // Check if response is JSON before parsing
+      const productsContentType = productsRes.headers.get('content-type');
+      const categoriesContentType = categoriesRes.headers.get('content-type');
 
-      setProducts(productsData);
-      setCategories(categoriesData);
-      setFilteredProducts(productsData);
+      // Handle products response
+      if (productsRes.ok && productsContentType?.includes('application/json')) {
+      const productsData = await productsRes.json();
+        // Filter out products without categories to prevent errors
+        const validProducts = productsData.filter((product) => product.category);
+        setProducts(validProducts);
+        
+        // Cache products
+        try {
+          sessionStorage.setItem(CACHE_KEY_PRODUCTS, JSON.stringify({
+            data: validProducts,
+            timestamp: Date.now()
+          }));
+        } catch (cacheError) {
+        }
+
+        // Log warning if any products were filtered out
+      } else {
+        // Don't clear state if we have cached data
+        if (!sessionStorage.getItem(CACHE_KEY_PRODUCTS)) {
+          setProducts([]);
+        }
+      }
+
+      // Handle categories response
+      if (categoriesRes.ok && categoriesContentType?.includes('application/json')) {
+      const categoriesData = await categoriesRes.json();
+        setCategories(categoriesData);
+        
+        // Cache categories
+        try {
+          sessionStorage.setItem(CACHE_KEY_CATEGORIES, JSON.stringify({
+            data: categoriesData,
+            timestamp: Date.now()
+          }));
+        } catch (cacheError) {
+        }
+      } else {
+        // Don't clear state if we have cached data
+        if (!sessionStorage.getItem(CACHE_KEY_CATEGORIES)) {
+          setCategories([]);
+        }
+      }
     } catch (error) {
-      console.error('Error fetching data:', error);
+      // Try to use cached data if available
+      try {
+        const cachedProducts = sessionStorage.getItem('tos_products_cache');
+        if (cachedProducts) {
+          const parsed = JSON.parse(cachedProducts);
+          if (parsed && parsed.data && Array.isArray(parsed.data)) {
+            const validProducts = parsed.data.filter((product) => product && product.category);
+            setProducts(validProducts);
+          }
+        } else {
+          setProducts([]);
+        }
+      } catch (cacheError) {
+        setProducts([]);
+        setFilteredProducts([]);
+      }
+
+      try {
+        const cachedCategories = sessionStorage.getItem('tos_categories_cache');
+        if (cachedCategories) {
+          const parsed = JSON.parse(cachedCategories);
+          if (parsed && parsed.data && Array.isArray(parsed.data)) {
+            setCategories(parsed.data);
+          }
+        } else {
+          setCategories([]);
+        }
+      } catch (cacheError) {
+        setCategories([]);
+      }
     } finally {
       setLoading(false);
     }
   };
 
-  const filterProducts = () => {
-    let filtered = products;
+  // Memoized filter function - only recalculates when dependencies change
+  const filteredProducts = useMemo(() => {
+    try {
+      // Start with products that have valid categories
+      if (!Array.isArray(products)) {
+        return [];
+      }
+
+      let filtered = products.filter((product) => product && product.category);
 
     // Filter by category
     if (selectedCategory !== 'all') {
-      filtered = filtered.filter((product) => product.category._id === selectedCategory);
+        filtered = filtered.filter(
+          (product) => product && product.category && product.category._id === selectedCategory
+        );
     }
 
     // Filter by search term
-    if (searchTerm) {
+      if (searchTerm && searchTerm.trim()) {
+        const searchLower = searchTerm.toLowerCase();
       filtered = filtered.filter(
-        (product) =>
-          product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          product.description.toLowerCase().includes(searchTerm.toLowerCase())
+        (product) => {
+          if (!product || !product.name) return false;
+          const nameMatch = product.name.toLowerCase().includes(searchLower);
+          const descMatch = product.description 
+            ? product.description.toLowerCase().includes(searchLower) 
+            : false;
+          return nameMatch || descMatch;
+        }
       );
     }
 
-    setFilteredProducts(filtered);
-  };
+      return filtered;
+    } catch (error) {
+      return [];
+    }
+  }, [products, selectedCategory, searchTerm]);
 
-  const getProductsByCategory = (categoryId) => {
-    return filteredProducts.filter((product) => product.category._id === categoryId);
-  };
+  // Memoized function to get products by category
+  const getProductsByCategory = useCallback((categoryId) => {
+    try {
+      if (!Array.isArray(filteredProducts) || !categoryId) {
+        return [];
+      }
+      return filteredProducts.filter(
+        (product) => product && product.category && product.category._id === categoryId
+      );
+    } catch (error) {
+      return [];
+    }
+  }, [filteredProducts]);
 
   if (loading) {
     return (
@@ -136,8 +210,18 @@ export default function ProductsPage() {
       <div className={styles.container}>
         {/* Hero Section */}
         <section className={styles.hero}>
-          <video autoPlay loop muted playsInline className={styles.heroVideo}>
-            <source src="https://www.pexels.com/download/video/3209211/" type="video/mp4" />
+          <video 
+            className={styles.heroVideo}
+            autoPlay
+            loop
+            muted
+            playsInline
+            onError={(e) => {
+              e.target.style.display = 'none';
+            }}
+          >
+            <source src="/videos/DemoImage.mp4" type="video/mp4" />
+            Your browser does not support the video tag.
           </video>
           <div className={styles.heroOverlay}></div>
           <div className={styles.heroContent}>
@@ -149,6 +233,7 @@ export default function ProductsPage() {
       {/* Search and Filter Section */}
       <section className={styles.filterSection}>
         <div className={styles.searchBar}>
+          <span className={styles.searchIcon}>🔍</span>
           <input
             type="text"
             placeholder="Search products..."
@@ -156,7 +241,16 @@ export default function ProductsPage() {
             onChange={(e) => setSearchTerm(e.target.value)}
             className={styles.searchInput}
           />
-          <button className={styles.searchBtn}>Search</button>
+          {searchTerm && (
+            <button 
+              className={styles.clearBtn} 
+              type="button"
+              onClick={() => setSearchTerm('')}
+              aria-label="Clear search"
+            >
+              ✕
+            </button>
+          )}
         </div>
 
         <div className={styles.categoryFilter}>
@@ -166,14 +260,16 @@ export default function ProductsPage() {
           >
             All Products
           </button>
-          {categories.map((category) => (
+          {Array.isArray(categories) && categories.map((category) => (
+            category && category._id ? (
             <button
               key={category._id}
               className={`${styles.categoryBtn} ${selectedCategory === category._id ? styles.active : ''}`}
               onClick={() => setSelectedCategory(category._id)}
             >
-              {category.name}
+                {category.name || 'Unnamed Category'}
             </button>
+            ) : null
           ))}
         </div>
       </section>
@@ -182,15 +278,22 @@ export default function ProductsPage() {
       {selectedCategory === 'all' ? (
         // Show products grouped by category
         <div className={styles.mainContent}>
-          {categories.map((category) => {
+          {!Array.isArray(products) || products.length === 0 ? (
+            <div className={styles.noProducts}>
+              <p>No products available</p>
+            </div>
+          ) : (
+            Array.isArray(categories) && categories.length > 0 ? (
+              categories.map((category) => {
+                if (!category || !category._id) return null;
             const categoryProducts = getProductsByCategory(category._id);
-            if (categoryProducts.length === 0) return null;
+                if (!Array.isArray(categoryProducts) || categoryProducts.length === 0) return null;
 
             return (
               <section key={category._id} className={styles.categorySection}>
                 <div className={styles.categorySectionHeader}>
                   <div>
-                    <h2>{category.name}</h2>
+                        <h2>{category.name || 'Unnamed Category'}</h2>
                     {category.description && <p>{category.description}</p>}
                   </div>
                   {categoryProducts.length > 4 && (
@@ -204,13 +307,21 @@ export default function ProductsPage() {
                 </div>
 
                 <div className={styles.productsGrid}>
-                  {categoryProducts.slice(0, 4).map((product) => (
-                    <ProductCard key={product._id} product={product} onViewDetails={openProductDetails} />
+                      {categoryProducts.slice(0, 4).map((product, index) => (
+                        product && product._id ? (
+                          <ProductCard key={product._id} product={product} index={index} />
+                        ) : null
                   ))}
                 </div>
               </section>
             );
-          })}
+              })
+            ) : (
+              <div className={styles.noProducts}>
+                <p>No products available</p>
+              </div>
+            )
+          )}
         </div>
       ) : (
         // Show filtered products
@@ -224,8 +335,8 @@ export default function ProductsPage() {
 
             {filteredProducts.length > 0 ? (
               <div className={styles.productsGrid}>
-                {filteredProducts.map((product) => (
-                  <ProductCard key={product._id} product={product} onViewDetails={openProductDetails} />
+                {filteredProducts.map((product, index) => (
+                  <ProductCard key={product._id} product={product} index={index} />
                 ))}
               </div>
             ) : (
@@ -237,154 +348,102 @@ export default function ProductsPage() {
         </div>
       )}
 
-      {/* Product Details Modal */}
-      {showModal && selectedProduct && (
-        <div className={styles.modal} onClick={closeModal}>
-          <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
-            <button className={styles.closeBtn} onClick={closeModal}>✕</button>
-            
-            <div className={styles.modalBody}>
-              <div className={styles.modalImages}>
-                {selectedProduct.images && selectedProduct.images.length > 0 ? (
-                  <div className={styles.imageGallery}>
-                    <img 
-                      src={selectedProduct.images[0].url} 
-                      alt={selectedProduct.name}
-                      className={styles.mainImage}
-                    />
-                    {selectedProduct.images.length > 1 && (
-                      <div className={styles.thumbnails}>
-                        {selectedProduct.images.map((image, index) => (
-                          <img
-                            key={index}
-                            src={image.url}
-                            alt={`${selectedProduct.name} ${index + 1}`}
-                            className={styles.thumbnail}
-                          />
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <div className={styles.noImageLarge}>No Image Available</div>
-                )}
-              </div>
-
-              <div className={styles.modalInfo}>
-                {selectedProduct.featured && (
-                  <div className={styles.featuredBadgeLarge}>⭐ Featured Product</div>
-                )}
-                <div className={styles.categoryTagLarge}>{selectedProduct.category?.name}</div>
-                <h2>{selectedProduct.name}</h2>
-                <div className={styles.priceLarge}>${selectedProduct.price}</div>
-                
-                <div className={styles.stockInfo}>
-                  {selectedProduct.stock > 0 ? (
-                    <span className={styles.inStock}>✓ In Stock ({selectedProduct.stock} available)</span>
-                  ) : (
-                    <span className={styles.outOfStockLarge}>✕ Out of Stock</span>
-                  )}
-                </div>
-
-                <div className={styles.descriptionSection}>
-                  <h3>Description</h3>
-                  <p>{selectedProduct.description}</p>
-                </div>
-
-                {selectedProduct.specifications && Object.keys(selectedProduct.specifications).length > 0 && (
-                  <div className={styles.specificationsSection}>
-                    <h3>Specifications</h3>
-                    <div className={styles.specGrid}>
-                      {Object.entries(selectedProduct.specifications).map(([key, value]) => (
-                        value && (
-                          <div key={key} className={styles.specRow}>
-                            <span className={styles.specLabel}>{key}:</span>
-                            <span className={styles.specValueLarge}>{value}</span>
-                          </div>
-                        )
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                <div className={styles.contactSection}>
-                  <h3>Interested in this product?</h3>
-                  <p>Enter your mobile number and we'll get back to you!</p>
-                  <div className={styles.contactForm}>
-                    <input
-                      type="tel"
-                      placeholder="Enter your mobile number"
-                      value={mobileNumber}
-                      onChange={(e) => setMobileNumber(e.target.value)}
-                      maxLength="15"
-                      className={styles.mobileInput}
-                      disabled={requestSent}
-                    />
-                    <button 
-                      className={styles.contactBtn} 
-                      onClick={handleContactRequest}
-                      disabled={sendingRequest || requestSent}
-                    >
-                      {sendingRequest ? 'Sending...' : requestSent ? '✓ Request Sent' : 'Request Callback'}
-                    </button>
-                  </div>
-                </div>
-
-                <div className={styles.modalActions}>
-                  <button className={styles.closeModalBtn} onClick={closeModal}>Close</button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
       </div>
     </>
   );
 }
 
-function ProductCard({ product, onViewDetails }) {
+// Memoized ProductCard component to prevent unnecessary re-renders
+const ProductCard = React.memo(function ProductCard({ product, index = 0 }) {
+  const [imageError, setImageError] = useState(false);
+  const [imageLoaded, setImageLoaded] = useState(false);
+
+  if (!product || !product._id) {
+    return null;
+  }
+
+  // Different font styles for each card (cycling through styles)
+  const fontStyles = [
+    styles.tosStyle1, // Bold, Modern
+    styles.tosStyle2, // Elegant, Serif
+    styles.tosStyle3, // Playful, Rounded
+    styles.tosStyle4, // Geometric, Sans-serif
+    styles.tosStyle5, // Classic, Condensed
+    styles.tosStyle6, // Decorative, Script
+  ];
+  const tosStyleClass = fontStyles[index % fontStyles.length];
+
+  const handleImageError = () => {
+    setImageError(true);
+    setImageLoaded(false);
+  };
+
+  const handleImageLoad = () => {
+    setImageLoaded(true);
+    setImageError(false);
+  };
+
+  try {
+    const hasImage = product.images && Array.isArray(product.images) && product.images[0] && product.images[0].url;
+    const showTOSFallback = !hasImage || imageError;
+
   return (
     <div className={styles.productCard}>
       {product.featured && <div className={styles.featuredBadge}>Featured</div>}
-      <div className={styles.imageContainer} onClick={() => onViewDetails(product)}>
-        {product.images && product.images[0] ? (
-          <img src={product.images[0].url} alt={product.name} />
-        ) : (
-          <div className={styles.noImage}>No Image</div>
+        <Link href={`/products/${product._id}`} className={styles.imageContainer}>
+          {hasImage && !imageError ? (
+            <img 
+              src={product.images[0].url} 
+              alt={product.name || 'Product'}
+              onError={handleImageError}
+              onLoad={handleImageLoad}
+              style={{ display: imageLoaded ? 'block' : 'none' }}
+            />
+          ) : null}
+          {showTOSFallback && (
+            <div className={`${styles.tosFallback} ${tosStyleClass}`}>
+              <span className={styles.tosText}>TOS</span>
+            </div>
         )}
-      </div>
+        </Link>
       <div className={styles.productInfo}>
-        <div className={styles.categoryTag}>{product.category?.name}</div>
-        <h3 onClick={() => onViewDetails(product)} style={{ cursor: 'pointer' }}>{product.name}</h3>
+          <div className={styles.categoryTag}>{product.category?.name || 'Uncategorized'}</div>
+          <Link href={`/products/${product._id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
+            <h3 style={{ cursor: 'pointer' }}>{product.name || 'Unnamed Product'}</h3>
+          </Link>
         <p className={styles.description}>
-          {product.description.length > 100
+            {product.description && product.description.length > 100
             ? product.description.substring(0, 100) + '...'
-            : product.description}
+              : product.description || 'No description available'}
         </p>
-        {product.specifications && Object.keys(product.specifications).length > 0 && (
+          {product.specifications && typeof product.specifications === 'object' && Object.keys(product.specifications).length > 0 && (
           <div className={styles.specifications}>
             {Object.entries(product.specifications)
               .slice(0, 2)
               .map(([key, value]) => (
-                value && (
+                  value && key ? (
                   <div key={key} className={styles.specItem}>
-                    <span className={styles.specKey}>{key}:</span>
-                    <span className={styles.specValue}>{value}</span>
+                      <span className={styles.specKey}>{String(key)}:</span>
+                      <span className={styles.specValue}>{String(value)}</span>
                   </div>
-                )
+                  ) : null
               ))}
           </div>
         )}
         <div className={styles.productFooter}>
-          <div className={styles.price}>${product.price}</div>
-          <button className={styles.viewBtn} onClick={() => onViewDetails(product)}>View Details</button>
+            <div className={styles.price}>₹{product.price || 0}</div>
+            <Link href={`/products/${product._id}`} className={styles.viewBtn}>View Details</Link>
         </div>
-        {product.stock < 10 && product.stock > 0 && (
+          {product.minOrderQuantity && product.minOrderQuantity > 1 && (
+            <div className={styles.minOrderBadge}>Min. Order: {product.minOrderQuantity}</div>
+          )}
+          {typeof product.stock === 'number' && product.stock < 10 && product.stock > 0 && (
           <div className={styles.lowStock}>Only {product.stock} left!</div>
         )}
-        {product.stock === 0 && <div className={styles.outOfStock}>Out of Stock</div>}
       </div>
     </div>
   );
+  } catch (error) {
+    return null;
 }
+});

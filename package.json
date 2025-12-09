@@ -5,35 +5,29 @@
   "scripts": {
     "dev": "next dev --turbopack",
     "build": "next build",
+    "build:prod": "NODE_ENV=production next build",
     "start": "next start",
+    "start:prod": "NODE_ENV=production next start",
     "lint": "next lint",
-    "server": "node server/index.js",
-    "server:dev": "nodemon server/index.js",
-    "dev:all": "concurrently \"npm run dev\" \"npm run server:dev\""
+    "create-admin": "node scripts/createAdmin.mjs",
+    "setup-env": "node scripts/setup-env.js",
+    "check-db": "node scripts/check-db-connection.mjs"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",
     "cloudinary": "^1.41.3",
-    "cors": "^2.8.5",
-    "dotenv": "^17.2.3",
-    "express": "^5.2.1",
     "jsonwebtoken": "^9.0.3",
     "mongoose": "^9.0.1",
-    "multer": "^2.0.2",
-    "multer-storage-cloudinary": "^4.0.0",
     "next": "15.5.7",
     "nodemailer": "^7.0.11",
     "react": "^19.2.1",
     "react-dom": "^19.2.1",
-    "react-modal": "^3.16.3",
     "react-slick": "^0.31.0",
     "slick-carousel": "^1.8.1"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.3",
-    "concurrently": "^9.2.1",
     "eslint": "^9.39.1",
-    "eslint-config-next": "15.5.7",
-    "nodemon": "^3.1.11"
+    "eslint-config-next": "15.5.7"
   }
 }

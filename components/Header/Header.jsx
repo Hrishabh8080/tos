@@ -13,7 +13,7 @@ const Header = () => {
         // Set active nav based on current pathname
         if (pathname === '/') {
             setActiveNav('Home');
-        } else if (pathname === '/products') {
+        } else if (pathname === '/products' || pathname.startsWith('/products/')) {
             setActiveNav('Products');
         }
     }, [pathname]);

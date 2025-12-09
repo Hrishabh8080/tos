@@ -221,10 +221,13 @@
 
     .whyChooseUs .container {
         gap: 30px;
+        flex-direction: column;
+        align-items: center;
     }
 
     .whyChooseUs .card {
-        width: 340px;
+        width: 100%;
+        max-width: 340px;
         height: auto;
         min-height: 400px;
         padding: 30px 20px;
@@ -250,5 +253,41 @@
         transform: translateY(0);
         font-size: 15px;
         padding: 0 20px;
+    }
+}
+
+@media (max-width: 480px) {
+    .whyChooseUs {
+        padding: 40px 10px;
+    }
+
+    .whyChooseUs .head {
+        font-size: 1.6rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .whyChooseUs .card {
+        padding: 25px 15px;
+        min-height: 350px;
+    }
+
+    .whyChooseUs .circle {
+        width: 100px;
+        height: 100px;
+    }
+
+    .whyChooseUs .circle:after {
+        width: 90px;
+        height: 90px;
+    }
+
+    .whyChooseUs .itemhead {
+        font-size: 18px;
+        margin-top: 20px;
+    }
+
+    .whyChooseUs .card .subtext {
+        font-size: 14px;
+        padding: 0 15px;
     }
 }

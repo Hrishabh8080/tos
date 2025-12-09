@@ -76,7 +76,8 @@ const ContactForm = () => {
         const formDataObj = { ...formData, time: formattedTime };
 
         try {
-            const response = await fetch("https://script.google.com/macros/s/AKfycbyWQy8Mx5827qmSsA5bHpzQgAKWG09Z1gnfe1QV2uALFpPpY83xttfogmTg-oGhGYC3/exec",
+            const googleSheetsUrl = process.env.NEXT_PUBLIC_GOOGLE_SHEETS_URL || "https://script.google.com/macros/s/AKfycbyWQy8Mx5827qmSsA5bHpzQgAKWG09Z1gnfe1QV2uALFpPpY83xttfogmTg-oGhGYC3/exec";
+            const response = await fetch(googleSheetsUrl,
                 {
                     method: "POST",
                     body: new URLSearchParams(formDataObj),
@@ -96,7 +97,6 @@ const ContactForm = () => {
                 alert("Failed to submit the form");
             }
         } catch (error) {
-            console.error("Error:", error);
             alert("There was an error submitting the form.");
         } finally {
             setIsLoading(false);  // Hide the loader after submission is complete

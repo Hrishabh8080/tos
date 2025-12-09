@@ -1,6 +1,7 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
+import { deduplicatedFetch } from '@/lib/utils/fetchCache';
 import styles from './Dashboard.module.css';
 
 export default function AdminDashboard() {
@@ -12,6 +13,8 @@ export default function AdminDashboard() {
   const [showCategoryForm, setShowCategoryForm] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
   const [editingCategory, setEditingCategory] = useState(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedCategoryFilter, setSelectedCategoryFilter] = useState('all');
   const router = useRouter();
 
   const [productForm, setProductForm] = useState({
@@ -31,50 +34,138 @@ export default function AdminDashboard() {
   });
 
   const [productImages, setProductImages] = useState([]);
-  const [categoryImage, setCategoryImage] = useState(null);
+  const [submittingProduct, setSubmittingProduct] = useState(false);
+  const [submittingCategory, setSubmittingCategory] = useState(false);
 
   useEffect(() => {
+    try {
     const token = localStorage.getItem('adminToken');
     if (!token) {
       router.push('/admin/login');
       return;
     }
     fetchData();
+    } catch (error) {
+      router.push('/admin/login');
+    }
   }, [router]);
 
+  // Memoized filtered products - only recalculates when dependencies change
+  const filteredProducts = useMemo(() => {
+    let filtered = products;
+
+    // Filter by category first
+    if (selectedCategoryFilter !== 'all') {
+      filtered = filtered.filter(
+        (product) => product.category && product.category._id === selectedCategoryFilter
+      );
+    }
+
+    // Then filter by search term
+    if (searchTerm.trim()) {
+      const searchLower = searchTerm.toLowerCase();
+      filtered = filtered.filter((product) => {
+        const nameMatch = product.name?.toLowerCase().includes(searchLower);
+        const descriptionMatch = product.description?.toLowerCase().includes(searchLower);
+        const categoryMatch = product.category?.name?.toLowerCase().includes(searchLower);
+        const priceMatch = product.price?.toString().includes(searchTerm);
+        const stockMatch = product.stock?.toString().includes(searchTerm);
+        
+        // Search in specifications
+        let specMatch = false;
+        if (product.specifications) {
+          const specValues = Object.values(product.specifications).join(' ').toLowerCase();
+          specMatch = specValues.includes(searchLower);
+        }
+
+        return nameMatch || descriptionMatch || categoryMatch || priceMatch || stockMatch || specMatch;
+      });
+    }
+
+    return filtered;
+  }, [searchTerm, selectedCategoryFilter, products]);
+
   const fetchData = async () => {
-    const token = localStorage.getItem('adminToken');
+    let token;
+    try {
+      token = localStorage.getItem('adminToken');
+    } catch (error) {
+      router.push('/admin/login');
+      return;
+    }
+
+    if (!token) {
+      router.push('/admin/login');
+      return;
+    }
+
     try {
       const [productsRes, categoriesRes] = await Promise.all([
-        fetch('http://localhost:3001/api/products/all', {
+        deduplicatedFetch('/api/products/all', {
           headers: { Authorization: `Bearer ${token}` },
         }),
-        fetch('http://localhost:3001/api/categories/all', {
+        deduplicatedFetch('/api/categories/all', {
           headers: { Authorization: `Bearer ${token}` },
         }),
       ]);
 
-      const productsData = await productsRes.json();
-      const categoriesData = await categoriesRes.json();
+      // Check if response is JSON before parsing
+      const productsContentType = productsRes.headers.get('content-type');
+      const categoriesContentType = categoriesRes.headers.get('content-type');
 
-      setProducts(productsData);
+      // Handle products response
+      if (productsRes.ok && productsContentType?.includes('application/json')) {
+      const productsData = await productsRes.json();
+        setProducts(Array.isArray(productsData) ? productsData : []);
+      } else {
+        setProducts([]);
+      }
+
+      // Handle categories response
+      if (categoriesRes.ok && categoriesContentType?.includes('application/json')) {
+      const categoriesData = await categoriesRes.json();
       setCategories(categoriesData);
+      } else {
+        setCategories([]);
+      }
     } catch (error) {
-      console.error('Error fetching data:', error);
+      // Set empty arrays on error to prevent crashes
+      setProducts([]);
+      setCategories([]);
     } finally {
       setLoading(false);
     }
   };
 
   const handleLogout = () => {
+    try {
     localStorage.removeItem('adminToken');
     localStorage.removeItem('adminData');
+    } catch (error) {
+    }
     router.push('/admin/login');
   };
 
   const handleProductSubmit = async (e) => {
     e.preventDefault();
-    const token = localStorage.getItem('adminToken');
+    
+    if (submittingProduct) return;
+    
+    let token;
+    try {
+      token = localStorage.getItem('adminToken');
+    } catch (error) {
+      alert('Error: Unable to access storage. Please try again.');
+      return;
+    }
+
+    if (!token) {
+      router.push('/admin/login');
+      return;
+    }
+
+    setSubmittingProduct(true);
+
     const formData = new FormData();
 
     formData.append('name', productForm.name);
@@ -92,8 +183,8 @@ export default function AdminDashboard() {
 
     try {
       const url = editingProduct
-        ? `http://localhost:3001/api/products/${editingProduct._id}`
-        : 'http://localhost:3001/api/products';
+        ? `/api/products/${editingProduct._id}`
+        : '/api/products';
 
       const response = await fetch(url, {
         method: editingProduct ? 'PUT' : 'POST',
@@ -111,26 +202,41 @@ export default function AdminDashboard() {
         fetchData();
       }
     } catch (error) {
-      console.error('Error saving product:', error);
       alert('Error saving product');
+    } finally {
+      setSubmittingProduct(false);
     }
   };
 
   const handleCategorySubmit = async (e) => {
     e.preventDefault();
-    const token = localStorage.getItem('adminToken');
+    
+    if (submittingCategory) return;
+    
+    let token;
+    try {
+      token = localStorage.getItem('adminToken');
+    } catch (error) {
+      alert('Error: Unable to access storage. Please try again.');
+      return;
+    }
+
+    if (!token) {
+      router.push('/admin/login');
+      return;
+    }
+
+    setSubmittingCategory(true);
+
     const formData = new FormData();
 
     formData.append('name', categoryForm.name);
     formData.append('description', categoryForm.description);
-    if (categoryImage) {
-      formData.append('image', categoryImage);
-    }
 
     try {
       const url = editingCategory
-        ? `http://localhost:3001/api/categories/${editingCategory._id}`
-        : 'http://localhost:3001/api/categories';
+        ? `/api/categories/${editingCategory._id}`
+        : '/api/categories';
 
       const response = await fetch(url, {
         method: editingCategory ? 'PUT' : 'POST',
@@ -148,17 +254,35 @@ export default function AdminDashboard() {
         fetchData();
       }
     } catch (error) {
-      console.error('Error saving category:', error);
       alert('Error saving category');
+    } finally {
+      setSubmittingCategory(false);
     }
   };
 
   const deleteProduct = async (id) => {
     if (!confirm('Are you sure you want to delete this product?')) return;
 
-    const token = localStorage.getItem('adminToken');
+    if (!id) {
+      alert('Invalid product ID');
+      return;
+    }
+
+    let token;
     try {
-      const response = await fetch(`http://localhost:3001/api/products/${id}`, {
+      token = localStorage.getItem('adminToken');
+    } catch (error) {
+      alert('Error: Unable to access storage. Please try again.');
+      return;
+    }
+
+    if (!token) {
+      router.push('/admin/login');
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/products/${id}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -168,16 +292,32 @@ export default function AdminDashboard() {
         fetchData();
       }
     } catch (error) {
-      console.error('Error deleting product:', error);
     }
   };
 
   const deleteCategory = async (id) => {
     if (!confirm('Are you sure you want to delete this category?')) return;
 
-    const token = localStorage.getItem('adminToken');
+    if (!id) {
+      alert('Invalid category ID');
+      return;
+    }
+
+    let token;
     try {
-      const response = await fetch(`http://localhost:3001/api/categories/${id}`, {
+      token = localStorage.getItem('adminToken');
+    } catch (error) {
+      alert('Error: Unable to access storage. Please try again.');
+      return;
+    }
+
+    if (!token) {
+      router.push('/admin/login');
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/categories/${id}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -187,7 +327,6 @@ export default function AdminDashboard() {
         fetchData();
       }
     } catch (error) {
-      console.error('Error deleting category:', error);
     }
   };
 
@@ -234,7 +373,6 @@ export default function AdminDashboard() {
       name: '',
       description: '',
     });
-    setCategoryImage(null);
   };
 
   const addSpecification = () => {
@@ -264,9 +402,13 @@ export default function AdminDashboard() {
       <div className={styles.tabs}>
         <button
           className={`${styles.tab} ${activeTab === 'products' ? styles.activeTab : ''}`}
-          onClick={() => setActiveTab('products')}
+          onClick={() => {
+            setActiveTab('products');
+            setSearchTerm(''); // Clear search when switching tabs
+            setSelectedCategoryFilter('all'); // Clear category filter when switching tabs
+          }}
         >
-          Products ({products.length})
+          Products ({searchTerm || selectedCategoryFilter !== 'all' ? filteredProducts.length : products.length})
         </button>
         <button
           className={`${styles.tab} ${activeTab === 'categories' ? styles.activeTab : ''}`}
@@ -292,6 +434,65 @@ export default function AdminDashboard() {
                 + Add Product
               </button>
             </div>
+
+            {/* Search and Filter Bar */}
+            <div className={styles.searchFilterContainer}>
+              <div className={styles.searchContainer}>
+                <input
+                  type="text"
+                  placeholder="Search products by name, description, price, stock..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className={styles.searchInput}
+                />
+                {searchTerm && (
+                  <button
+                    onClick={() => setSearchTerm('')}
+                    className={styles.clearSearchBtn}
+                    title="Clear search"
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
+
+              <div className={styles.filterContainer}>
+                <select
+                  value={selectedCategoryFilter}
+                  onChange={(e) => setSelectedCategoryFilter(e.target.value)}
+                  className={styles.categoryFilter}
+                >
+                  <option value="all">All Categories</option>
+                  {categories.map((category) => (
+                    <option key={category._id} value={category._id}>
+                      {category.name}
+                    </option>
+                  ))}
+                </select>
+                {selectedCategoryFilter !== 'all' && (
+                  <button
+                    onClick={() => setSelectedCategoryFilter('all')}
+                    className={styles.clearFilterBtn}
+                    title="Clear category filter"
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Search/Filter Results Info */}
+            {(searchTerm || selectedCategoryFilter !== 'all') && (
+              <div className={styles.searchInfo}>
+                Found {filteredProducts.length} product{filteredProducts.length !== 1 ? 's' : ''}
+                {selectedCategoryFilter !== 'all' && (
+                  <> in category "{categories.find(c => c._id === selectedCategoryFilter)?.name}"</>
+                )}
+                {searchTerm && (
+                  <> matching "{searchTerm}"</>
+                )}
+              </div>
+            )}
 
             {showProductForm && (
               <div className={styles.modal}>
@@ -490,8 +691,14 @@ export default function AdminDashboard() {
                     />
 
                     <div className={styles.formActions}>
-                      <button type="submit" className={styles.submitBtn}>
-                        {editingProduct ? 'Update' : 'Create'} Product
+                      <button 
+                        type="submit" 
+                        className={styles.submitBtn}
+                        disabled={submittingProduct}
+                      >
+                        {submittingProduct 
+                          ? (editingProduct ? 'Updating...' : 'Creating...') 
+                          : (editingProduct ? 'Update' : 'Create') + ' Product'}
                       </button>
                       <button
                         type="button"
@@ -511,15 +718,102 @@ export default function AdminDashboard() {
             )}
 
             <div className={styles.grid}>
-              {products.map((product) => (
-                <div key={product._id} className={styles.card}>
-                  {product.images && product.images[0] && (
-                    <img src={product.images[0].url} alt={product.name} className={styles.cardImage} />
+              {filteredProducts.length === 0 ? (
+                <div className={styles.noResults}>
+                  {searchTerm || selectedCategoryFilter !== 'all' ? (
+                    <>
+                      <p>
+                        No products found
+                        {selectedCategoryFilter !== 'all' && ` in category "${categories.find(c => c._id === selectedCategoryFilter)?.name}"`}
+                        {searchTerm && ` matching "${searchTerm}"`}
+                      </p>
+                      <div className={styles.clearFiltersContainer}>
+                        {searchTerm && (
+                          <button
+                            onClick={() => setSearchTerm('')}
+                            className={styles.clearFilterBtn}
+                          >
+                            Clear Search
+                          </button>
+                        )}
+                        {selectedCategoryFilter !== 'all' && (
+                          <button
+                            onClick={() => setSelectedCategoryFilter('all')}
+                            className={styles.clearFilterBtn}
+                          >
+                            Clear Category Filter
+                          </button>
+                        )}
+                        {(searchTerm || selectedCategoryFilter !== 'all') && (
+                          <button
+                            onClick={() => {
+                              setSearchTerm('');
+                              setSelectedCategoryFilter('all');
+                            }}
+                            className={styles.clearAllBtn}
+                          >
+                            Clear All Filters
+                          </button>
+                        )}
+                      </div>
+                    </>
+                  ) : (
+                    <p>No products available. Click "+ Add Product" to create one.</p>
                   )}
+                </div>
+              ) : (
+                filteredProducts.map((product, index) => {
+                  const ProductCardWithFallback = ({ product, index }) => {
+                    const [imageError, setImageError] = useState(false);
+                    const [imageLoaded, setImageLoaded] = useState(false);
+
+                    // Different font styles for each card (cycling through styles)
+                    const fontStyles = [
+                      styles.tosStyle1, // Bold, Modern
+                      styles.tosStyle2, // Elegant, Serif
+                      styles.tosStyle3, // Playful, Rounded
+                      styles.tosStyle4, // Geometric, Sans-serif
+                      styles.tosStyle5, // Classic, Condensed
+                      styles.tosStyle6, // Decorative, Script
+                    ];
+                    const tosStyleClass = fontStyles[index % fontStyles.length];
+
+                    const handleImageError = () => {
+                      setImageError(true);
+                      setImageLoaded(false);
+                    };
+
+                    const handleImageLoad = () => {
+                      setImageLoaded(true);
+                      setImageError(false);
+                    };
+
+                    const hasImage = product.images && Array.isArray(product.images) && product.images[0] && product.images[0].url;
+                    const showTOSFallback = !hasImage || imageError;
+
+                    return (
+                      <div key={product._id} className={styles.card}>
+                        <div className={styles.cardImageContainer}>
+                          {hasImage && !imageError ? (
+                            <img 
+                              src={product.images[0].url} 
+                              alt={product.name} 
+                              className={styles.cardImage}
+                              onError={handleImageError}
+                              onLoad={handleImageLoad}
+                              style={{ display: imageLoaded ? 'block' : 'none' }}
+                            />
+                          ) : null}
+                          {showTOSFallback && (
+                            <div className={`${styles.tosFallback} ${tosStyleClass}`}>
+                              <span className={styles.tosText}>TOS</span>
+                            </div>
+                          )}
+                        </div>
                   <div className={styles.cardContent}>
                     <h3>{product.name}</h3>
                     <p className={styles.category}>{product.category?.name}</p>
-                    <p className={styles.price}>${product.price}</p>
+                          <p className={styles.price}>₹{product.price}</p>
                     <p className={styles.stock}>Stock: {product.stock}</p>
                     {product.featured && <span className={styles.badge}>Featured</span>}
                     <div className={styles.cardActions}>
@@ -532,7 +826,12 @@ export default function AdminDashboard() {
                     </div>
                   </div>
                 </div>
-              ))}
+                    );
+                  };
+
+                  return <ProductCardWithFallback key={product._id} product={product} index={index} />;
+                })
+              )}
             </div>
           </div>
         )}
@@ -571,14 +870,15 @@ export default function AdminDashboard() {
                       onChange={(e) => setCategoryForm({ ...categoryForm, description: e.target.value })}
                       rows="4"
                     />
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={(e) => setCategoryImage(e.target.files[0])}
-                    />
                     <div className={styles.formActions}>
-                      <button type="submit" className={styles.submitBtn}>
-                        {editingCategory ? 'Update' : 'Create'} Category
+                      <button 
+                        type="submit" 
+                        className={styles.submitBtn}
+                        disabled={submittingCategory}
+                      >
+                        {submittingCategory 
+                          ? (editingCategory ? 'Updating...' : 'Creating...') 
+                          : (editingCategory ? 'Update' : 'Create') + ' Category'}
                       </button>
                       <button
                         type="button"
@@ -600,9 +900,6 @@ export default function AdminDashboard() {
             <div className={styles.grid}>
               {categories.map((category) => (
                 <div key={category._id} className={styles.card}>
-                  {category.image && (
-                    <img src={category.image.url} alt={category.name} className={styles.cardImage} />
-                  )}
                   <div className={styles.cardContent}>
                     <h3>{category.name}</h3>
                     <p>{category.description}</p>
