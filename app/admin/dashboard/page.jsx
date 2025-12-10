@@ -54,13 +54,23 @@ export default function AdminDashboard() {
         }),
       ]);
 
+      if (!productsRes.ok || !categoriesRes.ok) {
+        console.error('Failed to fetch data');
+        if (productsRes.status === 401 || categoriesRes.status === 401) {
+          router.push('/admin/login');
+          return;
+        }
+      }
+
       const productsData = await productsRes.json();
       const categoriesData = await categoriesRes.json();
 
-      setProducts(productsData);
-      setCategories(categoriesData);
+      setProducts(Array.isArray(productsData) ? productsData : []);
+      setCategories(Array.isArray(categoriesData) ? categoriesData : []);
     } catch (error) {
       console.error('Error fetching data:', error);
+      setProducts([]);
+      setCategories([]);
     } finally {
       setLoading(false);
     }
