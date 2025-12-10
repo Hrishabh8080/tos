@@ -18,7 +18,7 @@ connectDB();
 // Middleware
 const corsOptions = {
   origin: process.env.NODE_ENV === 'production' 
-    ? [process.env.FRONTEND_URL, 'https://tos-git-main-anya-xcodes-projects.vercel.app', 'https://tos-git-main-anya-xcodes-projects.vercel.app/']
+    ? [process.env.FRONTEND_URL, 'https://tos-new.vercel.app', 'https://tos-new.vercel.app/']
     : ['http://localhost:3000', 'http://localhost:3001'],
   credentials: true,
   optionsSuccessStatus: 200,
