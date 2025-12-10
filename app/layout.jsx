@@ -1,10 +1,13 @@
 import "./globals.css";
+import { ToastProvider } from "@/components/Toast/ToastContainer";
 
 export default function RootLayout({ children }) {
   return (
     <html lang="en">
       <body>
-        {children}
+        <ToastProvider>
+          {children}
+        </ToastProvider>
       </body>
     </html>
   );

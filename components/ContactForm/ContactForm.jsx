@@ -2,8 +2,10 @@
 
 import React, { useState, useEffect } from "react";
 import styles from "./ContactForm.module.css";
+import { useToast } from '../Toast/ToastContainer';
 
 const ContactForm = () => {
+    const toast = useToast();
     const [formData, setFormData] = useState({
         name: "",
         mobile: "",
@@ -84,7 +86,7 @@ const ContactForm = () => {
             );
 
             if (response.ok) {
-                alert("Data submitted successfully! We will contact you within 24 to 48 hours.");
+                toast.success("Thank you for contacting us! We will get back to you within 24-48 hours.");
                 setFormData({
                     name: "",
                     mobile: "",
@@ -93,11 +95,11 @@ const ContactForm = () => {
                     message: "",
                 });
             } else {
-                alert("Failed to submit the form");
+                toast.error("Failed to submit your inquiry. Please try again.");
             }
         } catch (error) {
             console.error("Error:", error);
-            alert("There was an error submitting the form.");
+            toast.error("Unable to submit the form. Please check your connection and try again.");
         } finally {
             setIsLoading(false);  // Hide the loader after submission is complete
         }

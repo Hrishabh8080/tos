@@ -3,8 +3,11 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import styles from './Dashboard.module.css';
 import API_URL from '../../../config/api';
+import { useToast } from '@/components/Toast/ToastContainer';
+import ConfirmModal from '@/components/ConfirmModal/ConfirmModal';
 
 export default function AdminDashboard() {
+  const toast = useToast();
   const [activeTab, setActiveTab] = useState('products');
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
@@ -13,6 +16,9 @@ export default function AdminDashboard() {
   const [showCategoryForm, setShowCategoryForm] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
   const [editingCategory, setEditingCategory] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [deleting, setDeleting] = useState(null);
+  const [confirmModal, setConfirmModal] = useState({ isOpen: false, title: '', message: '', onConfirm: null, type: 'danger' });
   const router = useRouter();
 
   const [productForm, setProductForm] = useState({
@@ -21,7 +27,6 @@ export default function AdminDashboard() {
     price: '',
     category: '',
     stock: '',
-    minOrderQuantity: '',
     featured: false,
     specifications: {},
   });
@@ -85,6 +90,7 @@ export default function AdminDashboard() {
 
   const handleProductSubmit = async (e) => {
     e.preventDefault();
+    setSubmitting(true);
     const token = localStorage.getItem('adminToken');
     const formData = new FormData();
 
@@ -93,7 +99,6 @@ export default function AdminDashboard() {
     formData.append('price', productForm.price);
     formData.append('category', productForm.category);
     formData.append('stock', productForm.stock);
-    formData.append('minOrderQuantity', productForm.minOrderQuantity);
     formData.append('featured', productForm.featured);
     formData.append('specifications', JSON.stringify(productForm.specifications));
 
@@ -115,20 +120,25 @@ export default function AdminDashboard() {
       });
 
       if (response.ok) {
-        alert(editingProduct ? 'Product updated successfully!' : 'Product created successfully!');
+        toast.success(editingProduct ? 'Product updated successfully!' : 'Product created successfully!');
         setShowProductForm(false);
         setEditingProduct(null);
         resetProductForm();
         fetchData();
+      } else {
+        toast.error('Failed to save product. Please try again.');
       }
     } catch (error) {
       console.error('Error saving product:', error);
-      alert('Error saving product');
+      toast.error('Unable to save product. Please check your connection and try again.');
+    } finally {
+      setSubmitting(false);
     }
   };
 
   const handleCategorySubmit = async (e) => {
     e.preventDefault();
+    setSubmitting(true);
     const token = localStorage.getItem('adminToken');
     const formData = new FormData();
 
@@ -152,21 +162,35 @@ export default function AdminDashboard() {
       });
 
       if (response.ok) {
-        alert(editingCategory ? 'Category updated successfully!' : 'Category created successfully!');
+        toast.success(editingCategory ? 'Category updated successfully!' : 'Category created successfully!');
         setShowCategoryForm(false);
         setEditingCategory(null);
         resetCategoryForm();
         fetchData();
+      } else {
+        toast.error('Failed to save category. Please try again.');
       }
     } catch (error) {
       console.error('Error saving category:', error);
-      alert('Error saving category');
+      toast.error('Unable to save category. Please check your connection and try again.');
+    } finally {
+      setSubmitting(false);
     }
   };
 
-  const deleteProduct = async (id) => {
-    if (!confirm('Are you sure you want to delete this product?')) return;
+  const deleteProduct = (id) => {
+    setConfirmModal({
+      isOpen: true,
+      title: 'Delete Product',
+      message: 'Are you sure you want to delete this product? This action cannot be undone.',
+      type: 'danger',
+      onConfirm: () => confirmDeleteProduct(id)
+    });
+  };
 
+  const confirmDeleteProduct = async (id) => {
+    setConfirmModal({ ...confirmModal, isOpen: false });
+    setDeleting(id);
     const token = localStorage.getItem('adminToken');
     try {
       const response = await fetch(`${API_URL}/api/products/${id}`, {
@@ -175,17 +199,32 @@ export default function AdminDashboard() {
       });
 
       if (response.ok) {
-        alert('Product deleted successfully!');
+        toast.success('Product deleted successfully!');
         fetchData();
+      } else {
+        toast.error('Failed to delete product. Please try again.');
       }
     } catch (error) {
       console.error('Error deleting product:', error);
+      toast.error('Unable to delete product. Please try again.');
+    } finally {
+      setDeleting(null);
     }
   };
 
-  const deleteCategory = async (id) => {
-    if (!confirm('Are you sure you want to delete this category?')) return;
+  const deleteCategory = (id) => {
+    setConfirmModal({
+      isOpen: true,
+      title: 'Delete Category',
+      message: 'Are you sure you want to delete this category? This action cannot be undone.',
+      type: 'danger',
+      onConfirm: () => confirmDeleteCategory(id)
+    });
+  };
 
+  const confirmDeleteCategory = async (id) => {
+    setConfirmModal({ ...confirmModal, isOpen: false });
+    setDeleting(id);
     const token = localStorage.getItem('adminToken');
     try {
       const response = await fetch(`${API_URL}/api/categories/${id}`, {
@@ -194,11 +233,16 @@ export default function AdminDashboard() {
       });
 
       if (response.ok) {
-        alert('Category deleted successfully!');
+        toast.success('Category deleted successfully!');
         fetchData();
+      } else {
+        toast.error('Failed to delete category. Please try again.');
       }
     } catch (error) {
       console.error('Error deleting category:', error);
+      toast.error('Unable to delete category. Please try again.');
+    } finally {
+      setDeleting(null);
     }
   };
 
@@ -210,7 +254,6 @@ export default function AdminDashboard() {
       price: product.price,
       category: product.category._id,
       stock: product.stock,
-      minOrderQuantity: product.minOrderQuantity || 1,
       featured: product.featured,
       specifications: product.specifications || {},
     });
@@ -233,7 +276,6 @@ export default function AdminDashboard() {
       price: '',
       category: '',
       stock: '',
-      minOrderQuantity: '',
       featured: false,
       specifications: {},
     });
@@ -324,25 +366,15 @@ export default function AdminDashboard() {
                       rows="4"
                     />
                     
-                    <div className={styles.formRow}>
-                      <input
-                        type="number"
-                        placeholder="Price (₹)"
-                        value={productForm.price}
-                        onChange={(e) => setProductForm({ ...productForm, price: e.target.value })}
-                        required
-                        step="0.01"
-                        min="0"
-                      />
-                      <input
-                        type="number"
-                        placeholder="Minimum Order Quantity (Min units customer must buy)"
-                        value={productForm.minOrderQuantity || ''}
-                        onChange={(e) => setProductForm({ ...productForm, minOrderQuantity: e.target.value })}
-                        required
-                        min="1"
-                      />
-                    </div>
+                    <input
+                      type="number"
+                      placeholder="Price (₹)"
+                      value={productForm.price}
+                      onChange={(e) => setProductForm({ ...productForm, price: e.target.value })}
+                      required
+                      step="0.01"
+                      min="0"
+                    />
                     {categories.length === 0 ? (
                       <div className={styles.noCategoryWarning}>
                         ⚠️ No categories available! Please create a category first.
@@ -501,8 +533,8 @@ export default function AdminDashboard() {
                     />
 
                     <div className={styles.formActions}>
-                      <button type="submit" className={styles.submitBtn}>
-                        {editingProduct ? 'Update' : 'Create'} Product
+                      <button type="submit" className={styles.submitBtn} disabled={submitting}>
+                        {submitting ? 'Saving...' : editingProduct ? 'Update Product' : 'Create Product'}
                       </button>
                       <button
                         type="button"
@@ -530,15 +562,14 @@ export default function AdminDashboard() {
                   <div className={styles.cardContent}>
                     <h3>{product.name}</h3>
                     <p className={styles.category}>{product.category?.name}</p>
-                    <p className={styles.price}>${product.price}</p>
-                    <p className={styles.stock}>Stock: {product.stock}</p>
+                    <p className={styles.price}>Approx. Price: ₹{product.price}</p>
                     {product.featured && <span className={styles.badge}>Featured</span>}
                     <div className={styles.cardActions}>
-                      <button onClick={() => editProduct(product)} className={styles.editBtn}>
+                      <button onClick={() => editProduct(product)} className={styles.editBtn} disabled={deleting === product._id}>
                         Edit
                       </button>
-                      <button onClick={() => deleteProduct(product._id)} className={styles.deleteBtn}>
-                        Delete
+                      <button onClick={() => deleteProduct(product._id)} className={styles.deleteBtn} disabled={deleting === product._id}>
+                        {deleting === product._id ? 'Deleting...' : 'Delete'}
                       </button>
                     </div>
                   </div>
@@ -588,8 +619,8 @@ export default function AdminDashboard() {
                       onChange={(e) => setCategoryImage(e.target.files[0])}
                     />
                     <div className={styles.formActions}>
-                      <button type="submit" className={styles.submitBtn}>
-                        {editingCategory ? 'Update' : 'Create'} Category
+                      <button type="submit" className={styles.submitBtn} disabled={submitting}>
+                        {submitting ? 'Saving...' : `${editingCategory ? 'Update' : 'Create'} Category`}
                       </button>
                       <button
                         type="button"
@@ -618,11 +649,11 @@ export default function AdminDashboard() {
                     <h3>{category.name}</h3>
                     <p>{category.description}</p>
                     <div className={styles.cardActions}>
-                      <button onClick={() => editCategory(category)} className={styles.editBtn}>
+                      <button onClick={() => editCategory(category)} className={styles.editBtn} disabled={deleting === category._id}>
                         Edit
                       </button>
-                      <button onClick={() => deleteCategory(category._id)} className={styles.deleteBtn}>
-                        Delete
+                      <button onClick={() => deleteCategory(category._id)} className={styles.deleteBtn} disabled={deleting === category._id}>
+                        {deleting === category._id ? 'Deleting...' : 'Delete'}
                       </button>
                     </div>
                   </div>
@@ -632,6 +663,16 @@ export default function AdminDashboard() {
           </div>
         )}
       </div>
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        type={confirmModal.type}
+        onConfirm={confirmModal.onConfirm}
+        onCancel={() => setConfirmModal({ ...confirmModal, isOpen: false })}
+        confirmText="Delete"
+        cancelText="Cancel"
+      />
     </div>
   );
 }

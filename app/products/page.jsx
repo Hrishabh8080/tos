@@ -4,8 +4,10 @@ import Link from 'next/link';
 import Header from '../../components/Header/Header';
 import styles from './Products.module.css';
 import API_URL from '../../config/api';
+import { useToast } from '@/components/Toast/ToastContainer';
 
 export default function ProductsPage() {
+  const toast = useToast();
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState('all');
@@ -14,6 +16,7 @@ export default function ProductsPage() {
   const [filteredProducts, setFilteredProducts] = useState([]);
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [showModal, setShowModal] = useState(false);
+  const [showPriceQuoteModal, setShowPriceQuoteModal] = useState(false);
   const [mobileNumber, setMobileNumber] = useState('');
   const [sendingRequest, setSendingRequest] = useState(false);
   const [requestSent, setRequestSent] = useState(false);
@@ -34,7 +37,7 @@ export default function ProductsPage() {
 
   const handleContactRequest = async () => {
     if (!mobileNumber || mobileNumber.length < 10) {
-      alert('Please enter a valid mobile number');
+      toast.error('Please enter a valid 10-digit mobile number');
       return;
     }
 
@@ -57,14 +60,14 @@ export default function ProductsPage() {
 
       if (response.ok) {
         setRequestSent(true);
-        alert('Thank you! We will contact you soon.');
+        toast.success('Thank you! We will contact you within 24-48 hours.');
         setMobileNumber('');
       } else {
-        alert('Failed to send request. Please try again.');
+        toast.error('Failed to send request. Please try again.');
       }
     } catch (error) {
       console.error('Error sending contact request:', error);
-      alert('Error sending request. Please try again.');
+      toast.error('Unable to send request. Please check your connection and try again.');
     } finally {
       setSendingRequest(false);
     }
@@ -119,7 +122,7 @@ export default function ProductsPage() {
   };
 
   const getProductsByCategory = (categoryId) => {
-    return filteredProducts.filter((product) => product.category._id === categoryId);
+    return filteredProducts.filter((product) => product.category?._id === categoryId);
   };
 
   if (loading) {
@@ -277,15 +280,13 @@ export default function ProductsPage() {
                 )}
                 <div className={styles.categoryTagLarge}>{selectedProduct.category?.name}</div>
                 <h2>{selectedProduct.name}</h2>
-                <div className={styles.priceLarge}>${selectedProduct.price}</div>
-                
-                <div className={styles.stockInfo}>
-                  {selectedProduct.stock > 0 ? (
-                    <span className={styles.inStock}>✓ In Stock ({selectedProduct.stock} available)</span>
-                  ) : (
-                    <span className={styles.outOfStockLarge}>✕ Out of Stock</span>
-                  )}
-                </div>
+                <div className={styles.priceLarge}>Approx. Price: ₹{selectedProduct.price}</div>
+                <button 
+                  className={styles.getLatestPriceBtn}
+                  onClick={() => setShowPriceQuoteModal(true)}
+                >
+                  Get Latest Price
+                </button>
 
                 <div className={styles.descriptionSection}>
                   <h3>Description</h3>
@@ -308,33 +309,42 @@ export default function ProductsPage() {
                   </div>
                 )}
 
-                <div className={styles.contactSection}>
-                  <h3>Interested in this product?</h3>
-                  <p>Enter your mobile number and we'll get back to you!</p>
-                  <div className={styles.contactForm}>
-                    <input
-                      type="tel"
-                      placeholder="Enter your mobile number"
-                      value={mobileNumber}
-                      onChange={(e) => setMobileNumber(e.target.value)}
-                      maxLength="15"
-                      className={styles.mobileInput}
-                      disabled={requestSent}
-                    />
-                    <button 
-                      className={styles.contactBtn} 
-                      onClick={handleContactRequest}
-                      disabled={sendingRequest || requestSent}
-                    >
-                      {sendingRequest ? 'Sending...' : requestSent ? '✓ Request Sent' : 'Request Callback'}
-                    </button>
-                  </div>
-                </div>
-
                 <div className={styles.modalActions}>
                   <button className={styles.closeModalBtn} onClick={closeModal}>Close</button>
                 </div>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Price Quote Modal */}
+      {showPriceQuoteModal && selectedProduct && (
+        <div className={styles.priceQuoteOverlay} onClick={() => setShowPriceQuoteModal(false)}>
+          <div className={styles.priceQuoteModal} onClick={(e) => e.stopPropagation()}>
+            <button className={styles.closeBtn} onClick={() => setShowPriceQuoteModal(false)}>✕</button>
+            <h3>Get Latest Price</h3>
+            <div className={styles.quoteProductInfo}>
+              <p className={styles.quoteProductName}>{selectedProduct.name}</p>
+              <p className={styles.quoteApproxPrice}>Approx. Price: ₹{selectedProduct.price}</p>
+            </div>
+            <div className={styles.quoteForm}>
+              <label>Mobile Number</label>
+              <input
+                type="tel"
+                placeholder="Enter your mobile number"
+                value={mobileNumber}
+                onChange={(e) => setMobileNumber(e.target.value)}
+                maxLength="15"
+                className={styles.quoteMobileInput}
+              />
+              <button 
+                className={styles.quoteSubmitBtn} 
+                onClick={handleContactRequest}
+                disabled={sendingRequest || requestSent}
+              >
+                {sendingRequest ? 'Sending...' : requestSent ? '✓ Request Sent' : 'Request Callback'}
+              </button>
             </div>
           </div>
         </div>
@@ -378,13 +388,12 @@ function ProductCard({ product, onViewDetails }) {
           </div>
         )}
         <div className={styles.productFooter}>
-          <div className={styles.price}>${product.price}</div>
+          <div className={styles.price}>Approx. Price: ₹{product.price}</div>
           <button className={styles.viewBtn} onClick={() => onViewDetails(product)}>View Details</button>
         </div>
         {product.stock < 10 && product.stock > 0 && (
           <div className={styles.lowStock}>Only {product.stock} left!</div>
         )}
-        {product.stock === 0 && <div className={styles.outOfStock}>Out of Stock</div>}
       </div>
     </div>
   );
