@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import styles from './AdminLogin.module.css';
+import API_URL from '../../../config/api';
 
 export default function AdminLogin() {
   const [email, setEmail] = useState('');
