@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Header from '../../components/Header/Header';
 import styles from './Products.module.css';
+import API_URL from '../../config/api';
 
 export default function ProductsPage() {
   const [products, setProducts] = useState([]);
@@ -40,7 +41,7 @@ export default function ProductsPage() {
     setSendingRequest(true);
 
     try {
-      const response = await fetch('http://localhost:3001/api/contact-request', {
+      const response = await fetch(`${API_URL}/api/contact-request`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -80,8 +81,8 @@ export default function ProductsPage() {
   const fetchData = async () => {
     try {
       const [productsRes, categoriesRes] = await Promise.all([
-        fetch('http://localhost:3001/api/products'),
-        fetch('http://localhost:3001/api/categories'),
+        fetch(`${API_URL}/api/products`),
+        fetch(`${API_URL}/api/categories`),
       ]);
 
       const productsData = await productsRes.json();

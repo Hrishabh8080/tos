@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import styles from './Dashboard.module.css';
+import API_URL from '../../../config/api';
 
 export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState('products');
@@ -46,10 +47,10 @@ export default function AdminDashboard() {
     const token = localStorage.getItem('adminToken');
     try {
       const [productsRes, categoriesRes] = await Promise.all([
-        fetch('http://localhost:3001/api/products/all', {
+        fetch(`${API_URL}/api/products/all`, {
           headers: { Authorization: `Bearer ${token}` },
         }),
-        fetch('http://localhost:3001/api/categories/all', {
+        fetch(`${API_URL}/api/categories/all`, {
           headers: { Authorization: `Bearer ${token}` },
         }),
       ]);
@@ -102,8 +103,8 @@ export default function AdminDashboard() {
 
     try {
       const url = editingProduct
-        ? `http://localhost:3001/api/products/${editingProduct._id}`
-        : 'http://localhost:3001/api/products';
+        ? `${API_URL}/api/products/${editingProduct._id}`
+        : `${API_URL}/api/products`;
 
       const response = await fetch(url, {
         method: editingProduct ? 'PUT' : 'POST',
@@ -139,8 +140,8 @@ export default function AdminDashboard() {
 
     try {
       const url = editingCategory
-        ? `http://localhost:3001/api/categories/${editingCategory._id}`
-        : 'http://localhost:3001/api/categories';
+        ? `${API_URL}/api/categories/${editingCategory._id}`
+        : `${API_URL}/api/categories`;
 
       const response = await fetch(url, {
         method: editingCategory ? 'PUT' : 'POST',
@@ -168,7 +169,7 @@ export default function AdminDashboard() {
 
     const token = localStorage.getItem('adminToken');
     try {
-      const response = await fetch(`http://localhost:3001/api/products/${id}`, {
+      const response = await fetch(`${API_URL}/api/products/${id}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -187,7 +188,7 @@ export default function AdminDashboard() {
 
     const token = localStorage.getItem('adminToken');
     try {
-      const response = await fetch(`http://localhost:3001/api/categories/${id}`, {
+      const response = await fetch(`${API_URL}/api/categories/${id}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` },
       });
