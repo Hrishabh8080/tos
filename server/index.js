@@ -1,4 +1,4 @@
-require('dotenv').config({ path: '.env.local' });
+require('dotenv').config({ path: process.env.NODE_ENV === 'production' ? '.env' : '.env.local' });
 const express = require('express');
 const cors = require('cors');
 const connectDB = require('./config/db');
@@ -18,10 +18,11 @@ connectDB();
 // Middleware
 const corsOptions = {
   origin: process.env.NODE_ENV === 'production' 
-    ? [process.env.FRONTEND_URL, 'https://your-vercel-app.vercel.app']
+    ? [process.env.FRONTEND_URL, 'https://tos-git-main-anya-xcodes-projects.vercel.app', 'https://tos-git-main-anya-xcodes-projects.vercel.app/']
     : ['http://localhost:3000', 'http://localhost:3001'],
   credentials: true,
-  optionsSuccessStatus: 200
+  optionsSuccessStatus: 200,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS']
 };
 
 app.use(cors(corsOptions));
