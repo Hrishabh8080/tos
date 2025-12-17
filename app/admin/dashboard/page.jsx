@@ -126,7 +126,10 @@ export default function AdminDashboard() {
         resetProductForm();
         fetchData();
       } else {
-        toast.error('Failed to save product. Please try again.');
+        const errorData = await response.json().catch(() => ({}));
+        const errorMessage = errorData.error || errorData.message || 'Failed to save product. Please try again.';
+        console.error('Server error response:', errorData);
+        toast.error(errorMessage);
       }
     } catch (error) {
       console.error('Error saving product:', error);

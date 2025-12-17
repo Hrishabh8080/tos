@@ -58,6 +58,15 @@ router.get('/:slug', async (req, res) => {
 router.post('/', authMiddleware, upload.array('images', 5), async (req, res) => {
   try {
     const { name, description, price, category, specifications, stock, featured } = req.body;
+    
+    // Validate required fields
+    if (!name || !description || !price || !category) {
+      return res.status(400).json({ 
+        message: 'Validation error', 
+        error: 'Name, description, price, and category are required' 
+      });
+    }
+
     const slug = name.toLowerCase().replace(/\s+/g, '-') + '-' + Date.now();
 
     const productData = {
@@ -91,6 +100,7 @@ router.post('/', authMiddleware, upload.array('images', 5), async (req, res) => 
     const populatedProduct = await Product.findById(product._id).populate('category');
     res.status(201).json(populatedProduct);
   } catch (error) {
+    console.error('Product creation error:', error);
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 });

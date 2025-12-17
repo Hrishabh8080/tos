@@ -43,6 +43,20 @@ app.get('/api/health', (req, res) => {
 // Error handling middleware
 app.use((err, req, res, next) => {
   console.error(err.stack);
+  
+  // Handle Multer errors
+  if (err.name === 'MulterError') {
+    if (err.code === 'LIMIT_FILE_SIZE') {
+      return res.status(400).json({ message: 'File upload error', error: 'File size exceeds 5MB limit' });
+    }
+    return res.status(400).json({ message: 'File upload error', error: err.message });
+  }
+  
+  // Handle file type errors
+  if (err.message && err.message.includes('File type')) {
+    return res.status(400).json({ message: 'Invalid file type', error: err.message });
+  }
+  
   res.status(500).json({ message: 'Something went wrong!', error: err.message });
 });
 
