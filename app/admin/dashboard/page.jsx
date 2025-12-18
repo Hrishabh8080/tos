@@ -12,6 +12,9 @@ export default function AdminDashboard() {
   const [showCategoryForm, setShowCategoryForm] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
   const [editingCategory, setEditingCategory] = useState(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedCategoryFilter, setSelectedCategoryFilter] = useState('all');
+  const [filteredProducts, setFilteredProducts] = useState([]);
   const router = useRouter();
 
   const [productForm, setProductForm] = useState({
@@ -42,14 +45,49 @@ export default function AdminDashboard() {
     fetchData();
   }, [router]);
 
+  // Filter products based on search term and category filter
+  useEffect(() => {
+    let filtered = products;
+
+    // Filter by category first
+    if (selectedCategoryFilter !== 'all') {
+      filtered = filtered.filter(
+        (product) => product.category && product.category._id === selectedCategoryFilter
+      );
+    }
+
+    // Then filter by search term
+    if (searchTerm.trim()) {
+      const searchLower = searchTerm.toLowerCase();
+      filtered = filtered.filter((product) => {
+        const nameMatch = product.name?.toLowerCase().includes(searchLower);
+        const descriptionMatch = product.description?.toLowerCase().includes(searchLower);
+        const categoryMatch = product.category?.name?.toLowerCase().includes(searchLower);
+        const priceMatch = product.price?.toString().includes(searchTerm);
+        const stockMatch = product.stock?.toString().includes(searchTerm);
+        
+        // Search in specifications
+        let specMatch = false;
+        if (product.specifications) {
+          const specValues = Object.values(product.specifications).join(' ').toLowerCase();
+          specMatch = specValues.includes(searchLower);
+        }
+
+        return nameMatch || descriptionMatch || categoryMatch || priceMatch || stockMatch || specMatch;
+      });
+    }
+
+    setFilteredProducts(filtered);
+  }, [searchTerm, selectedCategoryFilter, products]);
+
   const fetchData = async () => {
     const token = localStorage.getItem('adminToken');
     try {
       const [productsRes, categoriesRes] = await Promise.all([
-        fetch('http://localhost:3001/api/products/all', {
+        fetch('/api/products/all', {
           headers: { Authorization: `Bearer ${token}` },
         }),
-        fetch('http://localhost:3001/api/categories/all', {
+        fetch('/api/categories/all', {
           headers: { Authorization: `Bearer ${token}` },
         }),
       ]);
@@ -62,9 +100,11 @@ export default function AdminDashboard() {
       if (productsRes.ok && productsContentType?.includes('application/json')) {
         const productsData = await productsRes.json();
         setProducts(productsData);
+        setFilteredProducts(productsData);
       } else {
         console.warn(`Failed to fetch products: ${productsRes.status} ${productsRes.statusText}`);
         setProducts([]);
+        setFilteredProducts([]);
       }
 
       // Handle categories response
@@ -111,8 +151,8 @@ export default function AdminDashboard() {
 
     try {
       const url = editingProduct
-        ? `http://localhost:3001/api/products/${editingProduct._id}`
-        : 'http://localhost:3001/api/products';
+        ? `/api/products/${editingProduct._id}`
+        : '/api/products';
 
       const response = await fetch(url, {
         method: editingProduct ? 'PUT' : 'POST',
@@ -148,8 +188,8 @@ export default function AdminDashboard() {
 
     try {
       const url = editingCategory
-        ? `http://localhost:3001/api/categories/${editingCategory._id}`
-        : 'http://localhost:3001/api/categories';
+        ? `/api/categories/${editingCategory._id}`
+        : '/api/categories';
 
       const response = await fetch(url, {
         method: editingCategory ? 'PUT' : 'POST',
@@ -177,7 +217,7 @@ export default function AdminDashboard() {
 
     const token = localStorage.getItem('adminToken');
     try {
-      const response = await fetch(`http://localhost:3001/api/products/${id}`, {
+      const response = await fetch(`/api/products/${id}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -196,7 +236,7 @@ export default function AdminDashboard() {
 
     const token = localStorage.getItem('adminToken');
     try {
-      const response = await fetch(`http://localhost:3001/api/categories/${id}`, {
+      const response = await fetch(`/api/categories/${id}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -283,9 +323,13 @@ export default function AdminDashboard() {
       <div className={styles.tabs}>
         <button
           className={`${styles.tab} ${activeTab === 'products' ? styles.activeTab : ''}`}
-          onClick={() => setActiveTab('products')}
+          onClick={() => {
+            setActiveTab('products');
+            setSearchTerm(''); // Clear search when switching tabs
+            setSelectedCategoryFilter('all'); // Clear category filter when switching tabs
+          }}
         >
-          Products ({products.length})
+          Products ({searchTerm || selectedCategoryFilter !== 'all' ? filteredProducts.length : products.length})
         </button>
         <button
           className={`${styles.tab} ${activeTab === 'categories' ? styles.activeTab : ''}`}
@@ -311,6 +355,65 @@ export default function AdminDashboard() {
                 + Add Product
               </button>
             </div>
+
+            {/* Search and Filter Bar */}
+            <div className={styles.searchFilterContainer}>
+              <div className={styles.searchContainer}>
+                <input
+                  type="text"
+                  placeholder="Search products by name, description, price, stock..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className={styles.searchInput}
+                />
+                {searchTerm && (
+                  <button
+                    onClick={() => setSearchTerm('')}
+                    className={styles.clearSearchBtn}
+                    title="Clear search"
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
+
+              <div className={styles.filterContainer}>
+                <select
+                  value={selectedCategoryFilter}
+                  onChange={(e) => setSelectedCategoryFilter(e.target.value)}
+                  className={styles.categoryFilter}
+                >
+                  <option value="all">All Categories</option>
+                  {categories.map((category) => (
+                    <option key={category._id} value={category._id}>
+                      {category.name}
+                    </option>
+                  ))}
+                </select>
+                {selectedCategoryFilter !== 'all' && (
+                  <button
+                    onClick={() => setSelectedCategoryFilter('all')}
+                    className={styles.clearFilterBtn}
+                    title="Clear category filter"
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Search/Filter Results Info */}
+            {(searchTerm || selectedCategoryFilter !== 'all') && (
+              <div className={styles.searchInfo}>
+                Found {filteredProducts.length} product{filteredProducts.length !== 1 ? 's' : ''}
+                {selectedCategoryFilter !== 'all' && (
+                  <> in category "{categories.find(c => c._id === selectedCategoryFilter)?.name}"</>
+                )}
+                {searchTerm && (
+                  <> matching "{searchTerm}"</>
+                )}
+              </div>
+            )}
 
             {showProductForm && (
               <div className={styles.modal}>
@@ -530,28 +633,73 @@ export default function AdminDashboard() {
             )}
 
             <div className={styles.grid}>
-              {products.map((product) => (
-                <div key={product._id} className={styles.card}>
-                  {product.images && product.images[0] && (
-                    <img src={product.images[0].url} alt={product.name} className={styles.cardImage} />
+              {filteredProducts.length === 0 ? (
+                <div className={styles.noResults}>
+                  {searchTerm || selectedCategoryFilter !== 'all' ? (
+                    <>
+                      <p>
+                        No products found
+                        {selectedCategoryFilter !== 'all' && ` in category "${categories.find(c => c._id === selectedCategoryFilter)?.name}"`}
+                        {searchTerm && ` matching "${searchTerm}"`}
+                      </p>
+                      <div className={styles.clearFiltersContainer}>
+                        {searchTerm && (
+                          <button
+                            onClick={() => setSearchTerm('')}
+                            className={styles.clearFilterBtn}
+                          >
+                            Clear Search
+                          </button>
+                        )}
+                        {selectedCategoryFilter !== 'all' && (
+                          <button
+                            onClick={() => setSelectedCategoryFilter('all')}
+                            className={styles.clearFilterBtn}
+                          >
+                            Clear Category Filter
+                          </button>
+                        )}
+                        {(searchTerm || selectedCategoryFilter !== 'all') && (
+                          <button
+                            onClick={() => {
+                              setSearchTerm('');
+                              setSelectedCategoryFilter('all');
+                            }}
+                            className={styles.clearAllBtn}
+                          >
+                            Clear All Filters
+                          </button>
+                        )}
+                      </div>
+                    </>
+                  ) : (
+                    <p>No products available. Click "+ Add Product" to create one.</p>
                   )}
-                  <div className={styles.cardContent}>
-                    <h3>{product.name}</h3>
-                    <p className={styles.category}>{product.category?.name}</p>
-                    <p className={styles.price}>${product.price}</p>
-                    <p className={styles.stock}>Stock: {product.stock}</p>
-                    {product.featured && <span className={styles.badge}>Featured</span>}
-                    <div className={styles.cardActions}>
-                      <button onClick={() => editProduct(product)} className={styles.editBtn}>
-                        Edit
-                      </button>
-                      <button onClick={() => deleteProduct(product._id)} className={styles.deleteBtn}>
-                        Delete
-                      </button>
+                </div>
+              ) : (
+                filteredProducts.map((product) => (
+                  <div key={product._id} className={styles.card}>
+                    {product.images && product.images[0] && (
+                      <img src={product.images[0].url} alt={product.name} className={styles.cardImage} />
+                    )}
+                    <div className={styles.cardContent}>
+                      <h3>{product.name}</h3>
+                      <p className={styles.category}>{product.category?.name}</p>
+                      <p className={styles.price}>${product.price}</p>
+                      <p className={styles.stock}>Stock: {product.stock}</p>
+                      {product.featured && <span className={styles.badge}>Featured</span>}
+                      <div className={styles.cardActions}>
+                        <button onClick={() => editProduct(product)} className={styles.editBtn}>
+                          Edit
+                        </button>
+                        <button onClick={() => deleteProduct(product._id)} className={styles.deleteBtn}>
+                          Delete
+                        </button>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                ))
+              )}
             </div>
           </div>
         )}

@@ -1,0 +1,30 @@
+import { NextResponse } from 'next/server';
+import Category from '@/lib/models/Category';
+import connectDB from '@/lib/db';
+import { authMiddleware } from '@/lib/middleware/auth';
+
+export const dynamic = 'force-dynamic';
+
+export async function GET(request) {
+  try {
+    const auth = await authMiddleware(request);
+    if (auth.error) {
+      return NextResponse.json(
+        { message: auth.error.message },
+        { status: auth.error.status }
+      );
+    }
+
+    await connectDB();
+    const categories = await Category.find().sort({ createdAt: -1 }).lean();
+
+    return NextResponse.json(categories);
+  } catch (error) {
+    console.error('Error fetching all categories:', error);
+    return NextResponse.json(
+      { message: 'Server error', error: error.message },
+      { status: 500 }
+    );
+  }
+}
+

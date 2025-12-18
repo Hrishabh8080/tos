@@ -1,11 +1,11 @@
-require('dotenv').config({ path: require('path').join(__dirname, '../../.env.local') });
-const mongoose = require('mongoose');
-const Admin = require('../models/Admin');
+import mongoose from 'mongoose';
+import Admin from '../lib/models/Admin.js';
+import connectDB from '../lib/db.js';
 
 async function createDefaultAdmin() {
   try {
     // Connect to MongoDB
-    await mongoose.connect(process.env.MONGODB_URI);
+    await connectDB();
     console.log('Connected to MongoDB');
 
     // Check if admin already exists
@@ -36,3 +36,4 @@ async function createDefaultAdmin() {
 }
 
 createDefaultAdmin();
+

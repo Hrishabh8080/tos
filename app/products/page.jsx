@@ -40,7 +40,7 @@ export default function ProductsPage() {
     setSendingRequest(true);
 
     try {
-      const response = await fetch('http://localhost:3001/api/contact-request', {
+      const response = await fetch('/api/contact-request', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -71,12 +71,12 @@ export default function ProductsPage() {
           alert('Thank you! We will contact you soon.');
           setMobileNumber('');
         } else {
-          alert('Failed to send request. Please ensure the API server is running.');
+          alert('Failed to send request. Please try again.');
         }
       }
     } catch (error) {
       console.error('Error sending contact request:', error);
-      alert('Error sending request. Please ensure the API server is running on port 3001.');
+      alert('Error sending request. Please try again.');
     } finally {
       setSendingRequest(false);
     }
@@ -93,8 +93,8 @@ export default function ProductsPage() {
   const fetchData = async () => {
     try {
       const [productsRes, categoriesRes] = await Promise.all([
-        fetch('http://localhost:3001/api/products'),
-        fetch('http://localhost:3001/api/categories'),
+        fetch('/api/products'),
+        fetch('/api/categories'),
       ]);
 
       // Check if response is JSON before parsing
@@ -104,8 +104,17 @@ export default function ProductsPage() {
       // Handle products response
       if (productsRes.ok && productsContentType?.includes('application/json')) {
         const productsData = await productsRes.json();
-        setProducts(productsData);
-        setFilteredProducts(productsData);
+        // Filter out products without categories to prevent errors
+        const validProducts = productsData.filter((product) => product.category);
+        setProducts(validProducts);
+        setFilteredProducts(validProducts);
+        
+        // Log warning if any products were filtered out
+        if (productsData.length !== validProducts.length) {
+          console.warn(
+            `Filtered out ${productsData.length - validProducts.length} products without categories`
+          );
+        }
       } else {
         console.warn(`Failed to fetch products: ${productsRes.status} ${productsRes.statusText}`);
         setProducts([]);
@@ -132,11 +141,14 @@ export default function ProductsPage() {
   };
 
   const filterProducts = () => {
-    let filtered = products;
+    // Start with products that have valid categories
+    let filtered = products.filter((product) => product.category);
 
     // Filter by category
     if (selectedCategory !== 'all') {
-      filtered = filtered.filter((product) => product.category._id === selectedCategory);
+      filtered = filtered.filter(
+        (product) => product.category && product.category._id === selectedCategory
+      );
     }
 
     // Filter by search term
@@ -152,7 +164,9 @@ export default function ProductsPage() {
   };
 
   const getProductsByCategory = (categoryId) => {
-    return filteredProducts.filter((product) => product.category._id === categoryId);
+    return filteredProducts.filter(
+      (product) => product.category && product.category._id === categoryId
+    );
   };
 
   if (loading) {

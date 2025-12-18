@@ -1,30 +1,50 @@
-const express = require('express');
-const router = express.Router();
-const nodemailer = require('nodemailer');
+import { NextResponse } from 'next/server';
+import nodemailer from 'nodemailer';
 
-// Email configuration
-const transporter = nodemailer.createTransport({
-  service: 'gmail',
-  auth: {
-    user: process.env.EMAIL_USER || 'your-email@gmail.com',
-    pass: process.env.EMAIL_PASS || 'your-app-password',
-  },
-});
+export const dynamic = 'force-dynamic';
 
-// Handle contact request
-router.post('/', async (req, res) => {
+// Create transporter (cached)
+let transporter = null;
+
+function getTransporter() {
+  if (!transporter) {
+    const emailConfig = {
+      service: process.env.EMAIL_SERVICE || 'gmail',
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS,
+      },
+    };
+
+    // Support for custom SMTP configuration
+    if (process.env.EMAIL_HOST) {
+      emailConfig.host = process.env.EMAIL_HOST;
+      emailConfig.port = parseInt(process.env.EMAIL_PORT) || 587;
+      emailConfig.secure = process.env.EMAIL_SECURE === 'true';
+      delete emailConfig.service;
+    }
+
+    transporter = nodemailer.createTransport(emailConfig);
+  }
+  return transporter;
+}
+
+export async function POST(request) {
   try {
-    const { productName, productId, mobileNumber, category, price } = req.body;
+    const { productName, productId, mobileNumber, category, price } =
+      await request.json();
 
     // Validate input
     if (!productName || !mobileNumber) {
-      return res.status(400).json({ message: 'Product name and mobile number are required' });
+      return NextResponse.json(
+        { message: 'Product name and mobile number are required' },
+        { status: 400 }
+      );
     }
 
-    // Email content
     const mailOptions = {
-      from: process.env.EMAIL_USER || 'your-email@gmail.com',
-      to: 'ananynagupta@gmail.com',
+      from: process.env.EMAIL_USER,
+      to: process.env.CONTACT_EMAIL || process.env.EMAIL_USER,
       subject: `Product Inquiry: ${productName}`,
       html: `
         <div style="font-family: Arial, sans-serif; padding: 20px; background-color: #f5f5f5;">
@@ -80,19 +100,18 @@ router.post('/', async (req, res) => {
     };
 
     // Send email
-    await transporter.sendMail(mailOptions);
+    await getTransporter().sendMail(mailOptions);
 
-    res.status(200).json({ 
+    return NextResponse.json({
       message: 'Contact request sent successfully',
-      success: true 
+      success: true,
     });
   } catch (error) {
     console.error('Error sending contact request:', error);
-    res.status(500).json({ 
-      message: 'Failed to send contact request', 
-      error: error.message 
-    });
+    return NextResponse.json(
+      { message: 'Failed to send contact request', error: error.message },
+      { status: 500 }
+    );
   }
-});
+}
 
-module.exports = router;
