@@ -1,6 +1,5 @@
 'use client';
 import { useState, useEffect } from 'react';
-import Link from 'next/link';
 import Header from '../../components/Header/Header';
 import styles from './Products.module.css';
 import API_URL from '../../config/api';
@@ -106,15 +105,14 @@ export default function ProductsPage() {
 
     // Filter by category
     if (selectedCategory !== 'all') {
-      filtered = filtered.filter((product) => product.category._id === selectedCategory);
+      filtered = filtered.filter((product) => product.category?._id === selectedCategory);
     }
 
-    // Filter by search term
+    // Filter by search term (name only)
     if (searchTerm) {
       filtered = filtered.filter(
         (product) =>
-          product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          product.description.toLowerCase().includes(searchTerm.toLowerCase())
+          product.name.toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
 
@@ -122,7 +120,7 @@ export default function ProductsPage() {
   };
 
   const getProductsByCategory = (categoryId) => {
-    return filteredProducts.filter((product) => product.category?._id === categoryId);
+    return products.filter((product) => product.category?._id === categoryId);
   };
 
   if (loading) {
@@ -158,9 +156,22 @@ export default function ProductsPage() {
             placeholder="Search products..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+              }
+            }}
             className={styles.searchInput}
           />
-          <button className={styles.searchBtn}>Search</button>
+          <button 
+            className={styles.searchBtn}
+            onClick={() => {
+              // Trigger re-filter (already happens automatically via useEffect)
+              filterProducts();
+            }}
+          >
+            Search
+          </button>
         </div>
 
         <div className={styles.categoryFilter}>
@@ -183,8 +194,8 @@ export default function ProductsPage() {
       </section>
 
       {/* Products Grid by Category */}
-      {selectedCategory === 'all' ? (
-        // Show products grouped by category
+      {selectedCategory === 'all' && !searchTerm ? (
+        // Show products grouped by category when no search
         <div className={styles.mainContent}>
           {categories.map((category) => {
             const categoryProducts = getProductsByCategory(category._id);
@@ -197,7 +208,7 @@ export default function ProductsPage() {
                     <h2>{category.name}</h2>
                     {category.description && <p>{category.description}</p>}
                   </div>
-                  {categoryProducts.length > 4 && (
+                  {categoryProducts.length > 3 && (
                     <button
                       onClick={() => setSelectedCategory(category._id)}
                       className={styles.viewAllBtn}
@@ -208,7 +219,7 @@ export default function ProductsPage() {
                 </div>
 
                 <div className={styles.productsGrid}>
-                  {categoryProducts.slice(0, 4).map((product) => (
+                  {categoryProducts.slice(0, 3).map((product) => (
                     <ProductCard key={product._id} product={product} onViewDetails={openProductDetails} />
                   ))}
                 </div>
@@ -217,7 +228,7 @@ export default function ProductsPage() {
           })}
         </div>
       ) : (
-        // Show filtered products
+        // Show filtered products when searching or category selected
         <div className={styles.mainContent}>
           <section className={styles.categorySection}>
             <div className={styles.productsCount}>

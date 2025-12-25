@@ -118,6 +118,8 @@ export default function AdminDashboard() {
         ? `${API_URL}/api/products/${editingProduct._id}`
         : `${API_URL}/api/products`;
 
+      console.log('Submitting to:', url);
+
       const response = await fetch(url, {
         method: editingProduct ? 'PUT' : 'POST',
         headers: {
@@ -126,6 +128,8 @@ export default function AdminDashboard() {
         body: formData,
       });
 
+      console.log('Response status:', response.status);
+
       if (response.ok) {
         toast.success(editingProduct ? 'Product updated successfully!' : 'Product created successfully!');
         setShowProductForm(false);
@@ -133,9 +137,19 @@ export default function AdminDashboard() {
         resetProductForm();
         fetchData();
       } else {
-        const errorData = await response.json().catch(() => ({}));
-        const errorMessage = errorData.error || errorData.message || 'Failed to save product. Please try again.';
-        console.error('Server error response:', errorData);
+        const contentType = response.headers.get('content-type');
+        let errorMessage = 'Failed to save product. Please try again.';
+        
+        if (contentType && contentType.includes('application/json')) {
+          const errorData = await response.json();
+          errorMessage = errorData.error || errorData.message || errorMessage;
+          console.error('Server error response:', errorData);
+        } else {
+          const errorText = await response.text();
+          console.error('Server error (non-JSON):', errorText);
+          if (errorText) errorMessage = errorText;
+        }
+        
         toast.error(errorMessage);
       }
     } catch (error) {
@@ -616,17 +630,6 @@ export default function AdminDashboard() {
                       value={categoryForm.name}
                       onChange={(e) => setCategoryForm({ ...categoryForm, name: e.target.value })}
                       required
-                    />
-                    <textarea
-                      placeholder="Description"
-                      value={categoryForm.description}
-                      onChange={(e) => setCategoryForm({ ...categoryForm, description: e.target.value })}
-                      rows="4"
-                    />
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={(e) => setCategoryImage(e.target.files[0])}
                     />
                     <div className={styles.formActions}>
                       <button type="submit" className={styles.submitBtn} disabled={submitting}>
