@@ -526,15 +526,6 @@ export default function AdminDashboard() {
                       />
                     </div>
 
-                    <label className={styles.checkbox}>
-                      <input
-                        type="checkbox"
-                        checked={productForm.featured}
-                        onChange={(e) => setProductForm({ ...productForm, featured: e.target.checked })}
-                      />
-                      Featured Product
-                    </label>
-
                     <div className={styles.specifications}>
                       <label>Specifications:</label>
                       <button type="button" onClick={addSpecification} className={styles.addSpecBtn}>
