@@ -57,10 +57,12 @@ router.get('/:slug', async (req, res) => {
 // Create product (admin)
 router.post('/', authMiddleware, upload.array('images', 5), async (req, res) => {
   try {
+    console.log('Received product creation request:', req.body);
     const { name, description, price, category, specifications, stock, featured } = req.body;
     
     // Validate required fields
     if (!name || !description || !price || !category) {
+      console.log('Validation failed:', { name, description, price, category });
       return res.status(400).json({ 
         message: 'Validation error', 
         error: 'Name, description, price, and category are required' 
@@ -76,7 +78,7 @@ router.post('/', authMiddleware, upload.array('images', 5), async (req, res) => 
       price: parseFloat(price),
       category,
       stock: stock ? parseInt(stock) : 0,
-      featured: featured === 'true',
+      featured: featured === 'true' || featured === true || false,
     };
 
     if (req.files && req.files.length > 0) {
@@ -94,10 +96,13 @@ router.post('/', authMiddleware, upload.array('images', 5), async (req, res) => 
       }
     }
 
+    console.log('Creating product with data:', productData);
+
     const product = new Product(productData);
     await product.save();
 
     const populatedProduct = await Product.findById(product._id).populate('category');
+    console.log('Product created successfully:', populatedProduct._id);
     res.status(201).json(populatedProduct);
   } catch (error) {
     console.error('Product creation error:', error);
