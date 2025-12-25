@@ -9,15 +9,21 @@ export default function AdminLogin() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [checking, setChecking] = useState(true);
   const router = useRouter();
 
   useEffect(() => {
-    // Check if already logged in
-    const token = localStorage.getItem('adminToken');
-    if (token) {
-      router.push('/admin/dashboard');
-    }
-  }, [router]);
+    // Check if already logged in - only run once
+    const checkAuth = () => {
+      const token = localStorage.getItem('adminToken');
+      if (token) {
+        router.replace('/admin/dashboard');
+      } else {
+        setChecking(false);
+      }
+    };
+    checkAuth();
+  }, []); // Remove router from dependency array
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -38,7 +44,7 @@ export default function AdminLogin() {
       if (response.ok) {
         localStorage.setItem('adminToken', data.token);
         localStorage.setItem('adminData', JSON.stringify(data.admin));
-        router.push('/admin/dashboard');
+        router.replace('/admin/dashboard');
       } else {
         setError(data.message || 'Login failed');
       }
@@ -48,6 +54,10 @@ export default function AdminLogin() {
       setLoading(false);
     }
   };
+
+  if (checking) {
+    return null; // or a loading spinner
+  }
 
   return (
     <div className={styles.container}>

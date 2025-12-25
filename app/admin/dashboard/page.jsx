@@ -19,6 +19,7 @@ export default function AdminDashboard() {
   const [submitting, setSubmitting] = useState(false);
   const [deleting, setDeleting] = useState(null);
   const [confirmModal, setConfirmModal] = useState({ isOpen: false, title: '', message: '', onConfirm: null, type: 'danger' });
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const router = useRouter();
 
   const [productForm, setProductForm] = useState({
@@ -40,13 +41,18 @@ export default function AdminDashboard() {
   const [categoryImage, setCategoryImage] = useState(null);
 
   useEffect(() => {
-    const token = localStorage.getItem('adminToken');
-    if (!token) {
-      router.push('/admin/login');
-      return;
-    }
-    fetchData();
-  }, [router]);
+    // Check authentication - only run once
+    const checkAuth = async () => {
+      const token = localStorage.getItem('adminToken');
+      if (!token) {
+        router.replace('/admin/login');
+        return;
+      }
+      setIsAuthenticated(true);
+      await fetchData();
+    };
+    checkAuth();
+  }, []); // Remove router from dependency array
 
   const fetchData = async () => {
     const token = localStorage.getItem('adminToken');
@@ -63,7 +69,9 @@ export default function AdminDashboard() {
       if (!productsRes.ok || !categoriesRes.ok) {
         console.error('Failed to fetch data');
         if (productsRes.status === 401 || categoriesRes.status === 401) {
-          router.push('/admin/login');
+          localStorage.removeItem('adminToken');
+          localStorage.removeItem('adminData');
+          router.replace('/admin/login');
           return;
         }
       }
@@ -81,11 +89,10 @@ export default function AdminDashboard() {
       setLoading(false);
     }
   };
-
   const handleLogout = () => {
     localStorage.removeItem('adminToken');
     localStorage.removeItem('adminData');
-    router.push('/admin/login');
+    router.replace('/admin/login');
   };
 
   const handleProductSubmit = async (e) => {
@@ -304,7 +311,7 @@ export default function AdminDashboard() {
     }
   };
 
-  if (loading) {
+  if (!isAuthenticated || loading) {
     return <div className={styles.loading}>Loading...</div>;
   }
 
