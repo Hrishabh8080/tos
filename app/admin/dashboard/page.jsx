@@ -1,6 +1,7 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
+import { deduplicatedFetch } from '@/lib/utils/fetchCache';
 import styles from './Dashboard.module.css';
 
 export default function AdminDashboard() {
@@ -14,7 +15,6 @@ export default function AdminDashboard() {
   const [editingCategory, setEditingCategory] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState('all');
-  const [filteredProducts, setFilteredProducts] = useState([]);
   const router = useRouter();
 
   const [productForm, setProductForm] = useState({
@@ -37,16 +37,21 @@ export default function AdminDashboard() {
   const [categoryImage, setCategoryImage] = useState(null);
 
   useEffect(() => {
-    const token = localStorage.getItem('adminToken');
-    if (!token) {
+    try {
+      const token = localStorage.getItem('adminToken');
+      if (!token) {
+        router.push('/admin/login');
+        return;
+      }
+      fetchData();
+    } catch (error) {
+      console.error('Error checking auth:', error);
       router.push('/admin/login');
-      return;
     }
-    fetchData();
   }, [router]);
 
-  // Filter products based on search term and category filter
-  useEffect(() => {
+  // Memoized filtered products - only recalculates when dependencies change
+  const filteredProducts = useMemo(() => {
     let filtered = products;
 
     // Filter by category first
@@ -77,17 +82,30 @@ export default function AdminDashboard() {
       });
     }
 
-    setFilteredProducts(filtered);
+    return filtered;
   }, [searchTerm, selectedCategoryFilter, products]);
 
   const fetchData = async () => {
-    const token = localStorage.getItem('adminToken');
+    let token;
+    try {
+      token = localStorage.getItem('adminToken');
+    } catch (error) {
+      console.error('Error accessing localStorage:', error);
+      router.push('/admin/login');
+      return;
+    }
+
+    if (!token) {
+      router.push('/admin/login');
+      return;
+    }
+
     try {
       const [productsRes, categoriesRes] = await Promise.all([
-        fetch('/api/products/all', {
+        deduplicatedFetch('/api/products/all', {
           headers: { Authorization: `Bearer ${token}` },
         }),
-        fetch('/api/categories/all', {
+        deduplicatedFetch('/api/categories/all', {
           headers: { Authorization: `Bearer ${token}` },
         }),
       ]);
@@ -98,9 +116,8 @@ export default function AdminDashboard() {
 
       // Handle products response
       if (productsRes.ok && productsContentType?.includes('application/json')) {
-        const productsData = await productsRes.json();
+      const productsData = await productsRes.json();
         setProducts(productsData);
-        setFilteredProducts(productsData);
       } else {
         console.warn(`Failed to fetch products: ${productsRes.status} ${productsRes.statusText}`);
         setProducts([]);
@@ -109,8 +126,8 @@ export default function AdminDashboard() {
 
       // Handle categories response
       if (categoriesRes.ok && categoriesContentType?.includes('application/json')) {
-        const categoriesData = await categoriesRes.json();
-        setCategories(categoriesData);
+      const categoriesData = await categoriesRes.json();
+      setCategories(categoriesData);
       } else {
         console.warn(`Failed to fetch categories: ${categoriesRes.status} ${categoriesRes.statusText}`);
         setCategories([]);
@@ -126,14 +143,31 @@ export default function AdminDashboard() {
   };
 
   const handleLogout = () => {
-    localStorage.removeItem('adminToken');
-    localStorage.removeItem('adminData');
+    try {
+      localStorage.removeItem('adminToken');
+      localStorage.removeItem('adminData');
+    } catch (error) {
+      console.error('Error clearing localStorage:', error);
+    }
     router.push('/admin/login');
   };
 
   const handleProductSubmit = async (e) => {
     e.preventDefault();
-    const token = localStorage.getItem('adminToken');
+    let token;
+    try {
+      token = localStorage.getItem('adminToken');
+    } catch (error) {
+      console.error('Error accessing localStorage:', error);
+      alert('Error: Unable to access storage. Please try again.');
+      return;
+    }
+
+    if (!token) {
+      router.push('/admin/login');
+      return;
+    }
+
     const formData = new FormData();
 
     formData.append('name', productForm.name);
@@ -177,7 +211,20 @@ export default function AdminDashboard() {
 
   const handleCategorySubmit = async (e) => {
     e.preventDefault();
-    const token = localStorage.getItem('adminToken');
+    let token;
+    try {
+      token = localStorage.getItem('adminToken');
+    } catch (error) {
+      console.error('Error accessing localStorage:', error);
+      alert('Error: Unable to access storage. Please try again.');
+      return;
+    }
+
+    if (!token) {
+      router.push('/admin/login');
+      return;
+    }
+
     const formData = new FormData();
 
     formData.append('name', categoryForm.name);
@@ -215,7 +262,25 @@ export default function AdminDashboard() {
   const deleteProduct = async (id) => {
     if (!confirm('Are you sure you want to delete this product?')) return;
 
-    const token = localStorage.getItem('adminToken');
+    if (!id) {
+      alert('Invalid product ID');
+      return;
+    }
+
+    let token;
+    try {
+      token = localStorage.getItem('adminToken');
+    } catch (error) {
+      console.error('Error accessing localStorage:', error);
+      alert('Error: Unable to access storage. Please try again.');
+      return;
+    }
+
+    if (!token) {
+      router.push('/admin/login');
+      return;
+    }
+
     try {
       const response = await fetch(`/api/products/${id}`, {
         method: 'DELETE',
@@ -234,7 +299,25 @@ export default function AdminDashboard() {
   const deleteCategory = async (id) => {
     if (!confirm('Are you sure you want to delete this category?')) return;
 
-    const token = localStorage.getItem('adminToken');
+    if (!id) {
+      alert('Invalid category ID');
+      return;
+    }
+
+    let token;
+    try {
+      token = localStorage.getItem('adminToken');
+    } catch (error) {
+      console.error('Error accessing localStorage:', error);
+      alert('Error: Unable to access storage. Please try again.');
+      return;
+    }
+
+    if (!token) {
+      router.push('/admin/login');
+      return;
+    }
+
     try {
       const response = await fetch(`/api/categories/${id}`, {
         method: 'DELETE',
@@ -678,26 +761,26 @@ export default function AdminDashboard() {
                 </div>
               ) : (
                 filteredProducts.map((product) => (
-                  <div key={product._id} className={styles.card}>
-                    {product.images && product.images[0] && (
-                      <img src={product.images[0].url} alt={product.name} className={styles.cardImage} />
-                    )}
-                    <div className={styles.cardContent}>
-                      <h3>{product.name}</h3>
-                      <p className={styles.category}>{product.category?.name}</p>
-                      <p className={styles.price}>${product.price}</p>
-                      <p className={styles.stock}>Stock: {product.stock}</p>
-                      {product.featured && <span className={styles.badge}>Featured</span>}
-                      <div className={styles.cardActions}>
-                        <button onClick={() => editProduct(product)} className={styles.editBtn}>
-                          Edit
-                        </button>
-                        <button onClick={() => deleteProduct(product._id)} className={styles.deleteBtn}>
-                          Delete
-                        </button>
-                      </div>
+                <div key={product._id} className={styles.card}>
+                  {product.images && product.images[0] && (
+                    <img src={product.images[0].url} alt={product.name} className={styles.cardImage} />
+                  )}
+                  <div className={styles.cardContent}>
+                    <h3>{product.name}</h3>
+                    <p className={styles.category}>{product.category?.name}</p>
+                    <p className={styles.price}>${product.price}</p>
+                    <p className={styles.stock}>Stock: {product.stock}</p>
+                    {product.featured && <span className={styles.badge}>Featured</span>}
+                    <div className={styles.cardActions}>
+                      <button onClick={() => editProduct(product)} className={styles.editBtn}>
+                        Edit
+                      </button>
+                      <button onClick={() => deleteProduct(product._id)} className={styles.deleteBtn}>
+                        Delete
+                      </button>
                     </div>
                   </div>
+                </div>
                 ))
               )}
             </div>

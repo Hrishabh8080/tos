@@ -5,7 +5,9 @@
   "scripts": {
     "dev": "next dev --turbopack",
     "build": "next build",
+    "build:prod": "NODE_ENV=production next build",
     "start": "next start",
+    "start:prod": "NODE_ENV=production next start",
     "lint": "next lint",
     "create-admin": "node scripts/createAdmin.mjs"
   },
@@ -18,7 +20,6 @@
     "nodemailer": "^7.0.11",
     "react": "^19.2.1",
     "react-dom": "^19.2.1",
-    "react-modal": "^3.16.3",
     "react-slick": "^0.31.0",
     "slick-carousel": "^1.8.1"
   },

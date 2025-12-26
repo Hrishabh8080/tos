@@ -11,6 +11,10 @@
 }
 
 @media (max-width: 768px) {
+    .carouselContainer {
+        width: calc(100% - 10px);
+        margin: 5px;
+    }
 
     .carouselContainer :global(.slick-dots) {
         width: 60%;
@@ -22,8 +26,19 @@
         left: 20%;
     }
 
-
     .carouselImage {
         height: 300px;
+    }
+}
+
+@media (max-width: 480px) {
+    .carouselContainer {
+        width: 100%;
+        margin: 0;
+        margin-bottom: 30px;
+    }
+
+    .carouselImage {
+        height: 250px;
     }
 }

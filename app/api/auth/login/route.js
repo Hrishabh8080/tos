@@ -49,9 +49,11 @@ export async function POST(request) {
       },
     });
   } catch (error) {
-    console.error('Login error:', error);
+    if (process.env.NODE_ENV === 'development') {
+      console.error('Login error:', error);
+    }
     return NextResponse.json(
-      { message: 'Server error', error: error.message },
+      { message: 'Server error. Please try again later.' },
       { status: 500 }
     );
   }

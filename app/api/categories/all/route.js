@@ -16,13 +16,18 @@ export async function GET(request) {
     }
 
     await connectDB();
-    const categories = await Category.find().sort({ createdAt: -1 }).lean();
+    const categories = await Category.find()
+      .select('_id name slug description image isActive createdAt') // Only select needed fields
+      .sort({ createdAt: -1 })
+      .lean();
 
     return NextResponse.json(categories);
   } catch (error) {
-    console.error('Error fetching all categories:', error);
+    if (process.env.NODE_ENV === 'development') {
+      console.error('Error fetching all categories:', error);
+    }
     return NextResponse.json(
-      { message: 'Server error', error: error.message },
+      { message: 'Server error. Please try again later.' },
       { status: 500 }
     );
   }

@@ -18,14 +18,17 @@ export async function GET(request) {
     await connectDB();
     const products = await Product.find()
       .populate('category', 'name slug')
+      .select('_id name slug price images category featured stock isActive specifications minOrderQuantity createdAt') // Only select needed fields
       .sort({ createdAt: -1 })
       .lean();
 
     return NextResponse.json(products);
   } catch (error) {
-    console.error('Error fetching all products:', error);
+    if (process.env.NODE_ENV === 'development') {
+      console.error('Error fetching all products:', error);
+    }
     return NextResponse.json(
-      { message: 'Server error', error: error.message },
+      { message: 'Server error. Please try again later.' },
       { status: 500 }
     );
   }

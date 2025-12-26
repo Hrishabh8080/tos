@@ -232,6 +232,7 @@
     .testimonialContainer {
         grid-template-columns: 1fr;
         gap: 25px;
+        padding: 0 10px;
     }
 
     .testimonialCard {
@@ -241,5 +242,37 @@
 
     .testimonialText {
         font-size: 1em;
+    }
+}
+
+@media (max-width: 480px) {
+    .Testimonial {
+        padding: 40px 10px;
+    }
+
+    .head {
+        font-size: 1.6rem;
+        margin-bottom: 2rem;
+    }
+
+    .testimonialContainer {
+        padding: 0;
+    }
+
+    .testimonialCard {
+        padding: 25px 20px;
+    }
+
+    .testimonialImage img {
+        width: 80px;
+        height: 80px;
+    }
+
+    .customerName {
+        font-size: 1.2em;
+    }
+
+    .testimonialText {
+        font-size: 0.95em;
     }
 }

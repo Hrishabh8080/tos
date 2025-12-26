@@ -122,4 +122,35 @@
         min-width: 120px;
         padding: 15px;
     }
+
+    .scrollContainer::before,
+    .scrollContainer::after {
+        width: 80px;
+    }
+}
+
+@media (max-width: 480px) {
+    .OurClient {
+        padding: 30px 10px;
+    }
+
+    .OurClient .head {
+        font-size: 1.6rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .scrollContent {
+        gap: 30px;
+        animation: scroll 15s linear infinite;
+    }
+
+    .logoItem {
+        min-width: 100px;
+        padding: 12px;
+    }
+
+    .scrollContainer::before,
+    .scrollContainer::after {
+        width: 50px;
+    }
 }

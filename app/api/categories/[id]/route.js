@@ -3,6 +3,7 @@ import Category from '@/lib/models/Category';
 import connectDB from '@/lib/db';
 import { authMiddleware } from '@/lib/middleware/auth';
 import { uploadToCloudinary, deleteFromCloudinary } from '@/lib/cloudinary';
+import { clearCacheForPattern } from '@/lib/utils/fetchCache';
 import mongoose from 'mongoose';
 
 export const dynamic = 'force-dynamic';
@@ -34,7 +35,7 @@ async function parseFormData(request) {
 export async function GET(request, { params }) {
   try {
     await connectDB();
-    const { id } = params;
+    const { id } = await params;
 
     let category;
     
@@ -56,9 +57,11 @@ export async function GET(request, { params }) {
 
     return NextResponse.json(category);
   } catch (error) {
-    console.error('Error fetching category:', error);
+    if (process.env.NODE_ENV === 'development') {
+      console.error('Error fetching category:', error);
+    }
     return NextResponse.json(
-      { message: 'Server error', error: error.message },
+      { message: 'Server error. Please try again later.' },
       { status: 500 }
     );
   }
@@ -75,7 +78,7 @@ export async function PUT(request, { params }) {
     }
 
     await connectDB();
-    const { id } = params;
+    const { id } = await params;
     
     // PUT only works with ObjectId, not slug
     if (!isValidObjectId(id)) {
@@ -109,6 +112,25 @@ export async function PUT(request, { params }) {
       }
 
       const file = files[0].file;
+      
+      // Validate file size (max 5MB)
+      const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+      const ALLOWED_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+      
+      if (file.size > MAX_FILE_SIZE) {
+        return NextResponse.json(
+          { message: `File exceeds maximum size of 5MB` },
+          { status: 400 }
+        );
+      }
+      
+      if (!ALLOWED_TYPES.includes(file.type)) {
+        return NextResponse.json(
+          { message: `Invalid image type. Allowed: JPEG, PNG, WebP` },
+          { status: 400 }
+        );
+      }
+      
       const buffer = Buffer.from(await file.arrayBuffer());
       const result = await uploadToCloudinary(buffer, 'tos-categories');
       category.image = {
@@ -119,11 +141,17 @@ export async function PUT(request, { params }) {
 
     await category.save();
 
+    // Clear cache for categories list
+    clearCacheForPattern(`/api/categories/${id}`);
+    clearCacheForPattern('/api/categories');
+
     return NextResponse.json(category);
   } catch (error) {
-    console.error('Error updating category:', error);
+    if (process.env.NODE_ENV === 'development') {
+      console.error('Error updating category:', error);
+    }
     return NextResponse.json(
-      { message: 'Server error', error: error.message },
+      { message: 'Server error. Please try again later.' },
       { status: 500 }
     );
   }
@@ -140,7 +168,7 @@ export async function DELETE(request, { params }) {
     }
 
     await connectDB();
-    const { id } = params;
+    const { id } = await params;
     
     // DELETE only works with ObjectId, not slug
     if (!isValidObjectId(id)) {
@@ -165,11 +193,17 @@ export async function DELETE(request, { params }) {
 
     await category.deleteOne();
 
+    // Clear cache for categories list
+    clearCacheForPattern(`/api/categories/${id}`);
+    clearCacheForPattern('/api/categories');
+
     return NextResponse.json({ message: 'Category deleted successfully' });
   } catch (error) {
-    console.error('Error deleting category:', error);
+    if (process.env.NODE_ENV === 'development') {
+      console.error('Error deleting category:', error);
+    }
     return NextResponse.json(
-      { message: 'Server error', error: error.message },
+      { message: 'Server error. Please try again later.' },
       { status: 500 }
     );
   }

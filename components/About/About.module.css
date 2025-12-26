@@ -298,3 +298,41 @@
         font-size: 1rem;
     }
 }
+
+@media (max-width: 480px) {
+    .About {
+        padding: 40px 10px;
+    }
+
+    .head h2 {
+        font-size: 1.6rem;
+    }
+
+    .introCard {
+        padding: 20px;
+    }
+
+    .intro {
+        font-size: 0.95rem;
+    }
+
+    .featureCard {
+        padding: 25px 20px;
+    }
+
+    .icon {
+        font-size: 2.5rem;
+    }
+
+    .featureCard h3 {
+        font-size: 1.2rem;
+    }
+
+    .commitment {
+        padding: 25px 15px;
+    }
+
+    .commitment p {
+        font-size: 0.95rem;
+    }
+}

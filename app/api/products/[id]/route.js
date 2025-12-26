@@ -3,6 +3,7 @@ import Product from '@/lib/models/Product';
 import connectDB from '@/lib/db';
 import { authMiddleware } from '@/lib/middleware/auth';
 import { uploadToCloudinary, deleteFromCloudinary } from '@/lib/cloudinary';
+import { clearCacheForPattern } from '@/lib/utils/fetchCache';
 import mongoose from 'mongoose';
 
 export const dynamic = 'force-dynamic';
@@ -34,7 +35,7 @@ async function parseFormData(request) {
 export async function GET(request, { params }) {
   try {
     await connectDB();
-    const { id } = params;
+    const { id } = await params;
 
     let product;
     
@@ -42,12 +43,12 @@ export async function GET(request, { params }) {
     if (isValidObjectId(id)) {
       // It's an ID
       product = await Product.findById(id)
-        .populate('category')
+        .populate('category', 'name slug description') // Only populate needed fields
         .lean();
     } else {
       // It's a slug
       product = await Product.findOne({ slug: id })
-        .populate('category')
+        .populate('category', 'name slug description') // Only populate needed fields
         .lean();
     }
 
@@ -60,9 +61,11 @@ export async function GET(request, { params }) {
 
     return NextResponse.json(product);
   } catch (error) {
-    console.error('Error fetching product:', error);
+    if (process.env.NODE_ENV === 'development') {
+      console.error('Error fetching product:', error);
+    }
     return NextResponse.json(
-      { message: 'Server error', error: error.message },
+      { message: 'Server error. Please try again later.' },
       { status: 500 }
     );
   }
@@ -79,7 +82,7 @@ export async function PUT(request, { params }) {
     }
 
     await connectDB();
-    const { id } = params;
+    const { id } = await params;
     const { data, files } = await parseFormData(request);
 
     const product = await Product.findById(id);
@@ -90,15 +93,44 @@ export async function PUT(request, { params }) {
       );
     }
 
-    // Update fields
+    // Update fields with validation
     if (data.name) {
-      product.name = data.name;
-      product.slug = `${data.name.toLowerCase().replace(/\s+/g, '-')}-${Date.now()}`;
+      const sanitizedName = data.name.trim().substring(0, 200);
+      product.name = sanitizedName;
+      product.slug = `${sanitizedName.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${Date.now()}`;
     }
-    if (data.description) product.description = data.description;
-    if (data.price) product.price = parseFloat(data.price);
-    if (data.category) product.category = data.category;
-    if (data.stock !== undefined) product.stock = parseInt(data.stock);
+    if (data.description) {
+      product.description = data.description.trim().substring(0, 5000);
+    }
+    if (data.price) {
+      const parsedPrice = parseFloat(data.price);
+      if (isNaN(parsedPrice) || parsedPrice < 0) {
+        return NextResponse.json(
+          { message: 'Invalid price. Must be a positive number.' },
+          { status: 400 }
+        );
+      }
+      product.price = parsedPrice;
+    }
+    if (data.category) {
+      if (!mongoose.Types.ObjectId.isValid(data.category)) {
+        return NextResponse.json(
+          { message: 'Invalid category ID' },
+          { status: 400 }
+        );
+      }
+      product.category = data.category;
+    }
+    if (data.stock !== undefined) {
+      const parsedStock = parseInt(data.stock);
+      if (isNaN(parsedStock) || parsedStock < 0) {
+        return NextResponse.json(
+          { message: 'Invalid stock. Must be a non-negative number.' },
+          { status: 400 }
+        );
+      }
+      product.stock = parsedStock;
+    }
     if (data.featured !== undefined) product.featured = data.featured === 'true';
     if (data.isActive !== undefined) product.isActive = data.isActive === 'true';
 
@@ -115,32 +147,64 @@ export async function PUT(request, { params }) {
 
     // Delete specified images
     if (data.deleteImages) {
-      const imagesToDelete = JSON.parse(data.deleteImages);
-      await Promise.all(
-        imagesToDelete.map((publicId) => deleteFromCloudinary(publicId))
-      );
-      product.images = product.images.filter(
-        (img) => !imagesToDelete.includes(img.publicId)
-      );
+      try {
+        const imagesToDelete = JSON.parse(data.deleteImages);
+        if (Array.isArray(imagesToDelete) && imagesToDelete.length > 0) {
+          await Promise.all(
+            imagesToDelete.map((publicId) => {
+              if (publicId && typeof publicId === 'string') {
+                return deleteFromCloudinary(publicId).catch((err) => {
+                  console.warn('Failed to delete image:', publicId, err);
+                  return null;
+                });
+              }
+              return Promise.resolve(null);
+            })
+          );
+          if (Array.isArray(product.images)) {
+            product.images = product.images.filter(
+              (img) => img && img.publicId && !imagesToDelete.includes(img.publicId)
+            );
+          }
+        }
+      } catch (parseError) {
+        console.error('Error parsing deleteImages:', parseError);
+        // Continue without deleting images
+      }
     }
 
     // Upload new images
     if (files.length > 0) {
-      const imageFiles = await Promise.all(
-        files
-          .filter((f) => f.field === 'images')
-          .map(async (f) => {
-            const buffer = Buffer.from(await f.file.arrayBuffer());
-            return buffer;
-          })
-      );
+      const imageFiles = files
+        .filter((f) => f.field === 'images')
+        .map((f) => f.file);
 
       if (imageFiles.length > 0) {
-        const uploadResults = await Promise.all(
-          imageFiles.map((buffer) =>
-            uploadToCloudinary(buffer, 'tos-products')
-          )
-        );
+        // Validate file size (max 5MB per file)
+        const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+        const ALLOWED_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+        
+        for (const file of imageFiles) {
+          if (file.size > MAX_FILE_SIZE) {
+            return NextResponse.json(
+              { message: `File ${file.name} exceeds maximum size of 5MB` },
+              { status: 400 }
+            );
+          }
+          if (!ALLOWED_TYPES.includes(file.type)) {
+            return NextResponse.json(
+              { message: `File ${file.name} is not a valid image type. Allowed: JPEG, PNG, WebP` },
+              { status: 400 }
+            );
+          }
+        }
+
+        const uploadPromises = imageFiles.map(async (file) => {
+          const buffer = Buffer.from(await file.arrayBuffer());
+          return uploadToCloudinary(buffer, 'tos-products');
+        });
+
+        const uploadResults = await Promise.all(uploadPromises);
 
         const newImages = uploadResults.map((result) => ({
           url: result.secure_url,
@@ -156,11 +220,17 @@ export async function PUT(request, { params }) {
       .populate('category')
       .lean();
 
+    // Clear cache for this product and related products
+    clearCacheForPattern(`/api/products/${id}`);
+    clearCacheForPattern('/api/products');
+
     return NextResponse.json(populatedProduct);
   } catch (error) {
-    console.error('Error updating product:', error);
+    if (process.env.NODE_ENV === 'development') {
+      console.error('Error updating product:', error);
+    }
     return NextResponse.json(
-      { message: 'Server error', error: error.message },
+      { message: 'Server error. Please try again later.' },
       { status: 500 }
     );
   }
@@ -177,7 +247,7 @@ export async function DELETE(request, { params }) {
     }
 
     await connectDB();
-    const { id } = params;
+    const { id } = await params;
     
     // DELETE only works with ObjectId, not slug
     if (!isValidObjectId(id)) {
@@ -206,11 +276,17 @@ export async function DELETE(request, { params }) {
 
     await product.deleteOne();
 
+    // Clear cache for products list and related products
+    clearCacheForPattern(`/api/products/${id}`);
+    clearCacheForPattern('/api/products');
+
     return NextResponse.json({ message: 'Product deleted successfully' });
   } catch (error) {
-    console.error('Error deleting product:', error);
+    if (process.env.NODE_ENV === 'development') {
+      console.error('Error deleting product:', error);
+    }
     return NextResponse.json(
-      { message: 'Server error', error: error.message },
+      { message: 'Server error. Please try again later.' },
       { status: 500 }
     );
   }

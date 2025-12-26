@@ -29,6 +29,18 @@ function getTransporter() {
   return transporter;
 }
 
+// Sanitize HTML to prevent XSS
+function sanitizeHtml(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#x27;')
+    .replace(/\//g, '&#x2F;');
+}
+
 export async function POST(request) {
   try {
     const { productName, productId, mobileNumber, category, price } =
@@ -42,10 +54,26 @@ export async function POST(request) {
       );
     }
 
+    // Validate mobile number format (10 digits)
+    const mobileRegex = /^[0-9]{10}$/;
+    if (!mobileRegex.test(mobileNumber.replace(/\D/g, ''))) {
+      return NextResponse.json(
+        { message: 'Invalid mobile number format' },
+        { status: 400 }
+      );
+    }
+
+    // Sanitize all inputs to prevent XSS
+    const sanitizedProductName = sanitizeHtml(productName);
+    const sanitizedMobileNumber = sanitizeHtml(mobileNumber);
+    const sanitizedCategory = category ? sanitizeHtml(category) : '';
+    const sanitizedPrice = price ? sanitizeHtml(String(price)) : '';
+    const sanitizedProductId = productId ? sanitizeHtml(String(productId)) : '';
+
     const mailOptions = {
       from: process.env.EMAIL_USER,
       to: process.env.CONTACT_EMAIL || process.env.EMAIL_USER,
-      subject: `Product Inquiry: ${productName}`,
+      subject: `Product Inquiry: ${sanitizedProductName}`,
       html: `
         <div style="font-family: Arial, sans-serif; padding: 20px; background-color: #f5f5f5;">
           <div style="max-width: 600px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px;">
@@ -54,7 +82,7 @@ export async function POST(request) {
             <div style="background: #f9f9f9; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
               <h3 style="margin-top: 0; color: #333;">Customer Contact Information</h3>
               <p style="font-size: 18px; color: #667eea; font-weight: bold;">
-                📱 Mobile Number: ${mobileNumber}
+                📱 Mobile Number: ${sanitizedMobileNumber}
               </p>
             </div>
 
@@ -63,30 +91,30 @@ export async function POST(request) {
               <table style="width: 100%; border-collapse: collapse;">
                 <tr>
                   <td style="padding: 10px; border-bottom: 1px solid #e0e0e0;"><strong>Product Name:</strong></td>
-                  <td style="padding: 10px; border-bottom: 1px solid #e0e0e0;">${productName}</td>
+                  <td style="padding: 10px; border-bottom: 1px solid #e0e0e0;">${sanitizedProductName}</td>
                 </tr>
-                ${category ? `
+                ${sanitizedCategory ? `
                 <tr>
                   <td style="padding: 10px; border-bottom: 1px solid #e0e0e0;"><strong>Category:</strong></td>
-                  <td style="padding: 10px; border-bottom: 1px solid #e0e0e0;">${category}</td>
+                  <td style="padding: 10px; border-bottom: 1px solid #e0e0e0;">${sanitizedCategory}</td>
                 </tr>
                 ` : ''}
-                ${price ? `
+                ${sanitizedPrice ? `
                 <tr>
                   <td style="padding: 10px; border-bottom: 1px solid #e0e0e0;"><strong>Price:</strong></td>
-                  <td style="padding: 10px; border-bottom: 1px solid #e0e0e0;">$${price}</td>
+                  <td style="padding: 10px; border-bottom: 1px solid #e0e0e0;">$${sanitizedPrice}</td>
                 </tr>
                 ` : ''}
                 <tr>
                   <td style="padding: 10px;"><strong>Product ID:</strong></td>
-                  <td style="padding: 10px;">${productId}</td>
+                  <td style="padding: 10px;">${sanitizedProductId}</td>
                 </tr>
               </table>
             </div>
 
             <div style="margin-top: 30px; padding: 15px; background: #e8f5e9; border-radius: 8px;">
               <p style="margin: 0; color: #2e7d32;">
-                <strong>Action Required:</strong> Please contact this customer regarding their inquiry about "${productName}".
+                <strong>Action Required:</strong> Please contact this customer regarding their inquiry about "${sanitizedProductName}".
               </p>
             </div>
 
@@ -107,9 +135,11 @@ export async function POST(request) {
       success: true,
     });
   } catch (error) {
-    console.error('Error sending contact request:', error);
+    if (process.env.NODE_ENV === 'development') {
+      console.error('Error sending contact request:', error);
+    }
     return NextResponse.json(
-      { message: 'Failed to send contact request', error: error.message },
+      { message: 'Failed to send contact request. Please try again later.' },
       { status: 500 }
     );
   }
