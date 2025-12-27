@@ -1,9 +1,10 @@
 import { NextResponse } from 'next/server';
 import Category from '@/lib/models/Category';
+import Product from '@/lib/models/Product';
 import connectDB from '@/lib/db';
 import { authMiddleware } from '@/lib/middleware/auth';
-import { uploadToCloudinary, deleteFromCloudinary } from '@/lib/cloudinary';
 import { clearCacheForPattern } from '@/lib/utils/fetchCache';
+import { deleteFromCloudinary } from '@/lib/cloudinary';
 import mongoose from 'mongoose';
 
 export const dynamic = 'force-dynamic';
@@ -18,17 +19,14 @@ function isValidObjectId(id) {
 async function parseFormData(request) {
   const formData = await request.formData();
   const data = {};
-  const files = [];
 
   for (const [key, value] of formData.entries()) {
-    if (value instanceof File) {
-      files.push({ field: key, file: value });
-    } else {
+    if (!(value instanceof File)) {
       data[key] = value;
     }
   }
 
-  return { data, files };
+  return { data };
 }
 
 // GET - Handle both ID and slug lookups
@@ -87,7 +85,7 @@ export async function PUT(request, { params }) {
         { status: 400 }
       );
     }
-    const { data, files } = await parseFormData(request);
+    const { data } = await parseFormData(request);
 
     const category = await Category.findById(id);
     if (!category) {
@@ -103,41 +101,6 @@ export async function PUT(request, { params }) {
     }
     if (data.description !== undefined) category.description = data.description;
     if (data.isActive !== undefined) category.isActive = data.isActive === 'true';
-
-    // Handle image upload
-    if (files.length > 0 && files[0].field === 'image') {
-      // Delete old image if exists
-      if (category.image?.publicId) {
-        await deleteFromCloudinary(category.image.publicId);
-      }
-
-      const file = files[0].file;
-      
-      // Validate file size (max 5MB)
-      const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
-      const ALLOWED_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
-      
-      if (file.size > MAX_FILE_SIZE) {
-        return NextResponse.json(
-          { message: `File exceeds maximum size of 5MB` },
-          { status: 400 }
-        );
-      }
-      
-      if (!ALLOWED_TYPES.includes(file.type)) {
-        return NextResponse.json(
-          { message: `Invalid image type. Allowed: JPEG, PNG, WebP` },
-          { status: 400 }
-        );
-      }
-      
-      const buffer = Buffer.from(await file.arrayBuffer());
-      const result = await uploadToCloudinary(buffer, 'tos-categories');
-      category.image = {
-        url: result.secure_url,
-        publicId: result.public_id,
-      };
-    }
 
     await category.save();
 
@@ -186,18 +149,42 @@ export async function DELETE(request, { params }) {
       );
     }
 
-    // Delete image from Cloudinary
-    if (category.image?.publicId) {
-      await deleteFromCloudinary(category.image.publicId);
+    // Find all products in this category
+    const products = await Product.find({ category: id });
+    
+    // Delete images from Cloudinary for all products
+    for (const product of products) {
+      if (product.images && Array.isArray(product.images)) {
+        for (const image of product.images) {
+          if (image.publicId) {
+            try {
+              await deleteFromCloudinary(image.publicId);
+            } catch (error) {
+              // Log but don't fail if image deletion fails
+              if (process.env.NODE_ENV === 'development') {
+                console.warn(`Failed to delete image ${image.publicId}:`, error);
+              }
+            }
+          }
+        }
+      }
     }
 
+    // Delete all products in this category
+    const deleteResult = await Product.deleteMany({ category: id });
+
+    // Delete the category
     await category.deleteOne();
 
-    // Clear cache for categories list
+    // Clear cache for categories and products
     clearCacheForPattern(`/api/categories/${id}`);
     clearCacheForPattern('/api/categories');
+    clearCacheForPattern('/api/products');
 
-    return NextResponse.json({ message: 'Category deleted successfully' });
+    return NextResponse.json({ 
+      message: 'Category deleted successfully',
+      deletedProducts: deleteResult.deletedCount || 0
+    });
   } catch (error) {
     if (process.env.NODE_ENV === 'development') {
       console.error('Error deleting category:', error);

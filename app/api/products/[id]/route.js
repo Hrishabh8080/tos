@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import Product from '@/lib/models/Product';
+import Category from '@/lib/models/Category';
 import connectDB from '@/lib/db';
 import { authMiddleware } from '@/lib/middleware/auth';
 import { uploadToCloudinary, deleteFromCloudinary } from '@/lib/cloudinary';
@@ -116,6 +117,21 @@ export async function PUT(request, { params }) {
       if (!mongoose.Types.ObjectId.isValid(data.category)) {
         return NextResponse.json(
           { message: 'Invalid category ID' },
+          { status: 400 }
+        );
+      }
+      // Check if category exists before updating
+      const category = await Category.findById(data.category);
+      if (!category) {
+        return NextResponse.json(
+          { message: 'Category not found. Cannot update product with non-existent category.' },
+          { status: 400 }
+        );
+      }
+      // Check if category is active
+      if (!category.isActive) {
+        return NextResponse.json(
+          { message: 'Cannot assign product to an inactive category.' },
           { status: 400 }
         );
       }

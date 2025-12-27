@@ -34,16 +34,15 @@ export default function AdminDashboard() {
   });
 
   const [productImages, setProductImages] = useState([]);
-  const [categoryImage, setCategoryImage] = useState(null);
 
   useEffect(() => {
     try {
-      const token = localStorage.getItem('adminToken');
-      if (!token) {
-        router.push('/admin/login');
-        return;
-      }
-      fetchData();
+    const token = localStorage.getItem('adminToken');
+    if (!token) {
+      router.push('/admin/login');
+      return;
+    }
+    fetchData();
     } catch (error) {
       console.error('Error checking auth:', error);
       router.push('/admin/login');
@@ -144,8 +143,8 @@ export default function AdminDashboard() {
 
   const handleLogout = () => {
     try {
-      localStorage.removeItem('adminToken');
-      localStorage.removeItem('adminData');
+    localStorage.removeItem('adminToken');
+    localStorage.removeItem('adminData');
     } catch (error) {
       console.error('Error clearing localStorage:', error);
     }
@@ -229,9 +228,6 @@ export default function AdminDashboard() {
 
     formData.append('name', categoryForm.name);
     formData.append('description', categoryForm.description);
-    if (categoryImage) {
-      formData.append('image', categoryImage);
-    }
 
     try {
       const url = editingCategory
@@ -376,7 +372,6 @@ export default function AdminDashboard() {
       name: '',
       description: '',
     });
-    setCategoryImage(null);
   };
 
   const addSpecification = () => {
@@ -760,28 +755,75 @@ export default function AdminDashboard() {
                   )}
                 </div>
               ) : (
-                filteredProducts.map((product) => (
-                <div key={product._id} className={styles.card}>
-                  {product.images && product.images[0] && (
-                    <img src={product.images[0].url} alt={product.name} className={styles.cardImage} />
-                  )}
-                  <div className={styles.cardContent}>
-                    <h3>{product.name}</h3>
-                    <p className={styles.category}>{product.category?.name}</p>
-                    <p className={styles.price}>${product.price}</p>
-                    <p className={styles.stock}>Stock: {product.stock}</p>
-                    {product.featured && <span className={styles.badge}>Featured</span>}
-                    <div className={styles.cardActions}>
-                      <button onClick={() => editProduct(product)} className={styles.editBtn}>
-                        Edit
-                      </button>
-                      <button onClick={() => deleteProduct(product._id)} className={styles.deleteBtn}>
-                        Delete
-                      </button>
-                    </div>
-                  </div>
-                </div>
-                ))
+                filteredProducts.map((product, index) => {
+                  const ProductCardWithFallback = ({ product, index }) => {
+                    const [imageError, setImageError] = useState(false);
+                    const [imageLoaded, setImageLoaded] = useState(false);
+
+                    // Different font styles for each card (cycling through styles)
+                    const fontStyles = [
+                      styles.tosStyle1, // Bold, Modern
+                      styles.tosStyle2, // Elegant, Serif
+                      styles.tosStyle3, // Playful, Rounded
+                      styles.tosStyle4, // Geometric, Sans-serif
+                      styles.tosStyle5, // Classic, Condensed
+                      styles.tosStyle6, // Decorative, Script
+                    ];
+                    const tosStyleClass = fontStyles[index % fontStyles.length];
+
+                    const handleImageError = () => {
+                      setImageError(true);
+                      setImageLoaded(false);
+                    };
+
+                    const handleImageLoad = () => {
+                      setImageLoaded(true);
+                      setImageError(false);
+                    };
+
+                    const hasImage = product.images && Array.isArray(product.images) && product.images[0] && product.images[0].url;
+                    const showTOSFallback = !hasImage || imageError;
+
+                    return (
+                      <div key={product._id} className={styles.card}>
+                        <div className={styles.cardImageContainer}>
+                          {hasImage && !imageError ? (
+                            <img 
+                              src={product.images[0].url} 
+                              alt={product.name} 
+                              className={styles.cardImage}
+                              onError={handleImageError}
+                              onLoad={handleImageLoad}
+                              style={{ display: imageLoaded ? 'block' : 'none' }}
+                            />
+                          ) : null}
+                          {showTOSFallback && (
+                            <div className={`${styles.tosFallback} ${tosStyleClass}`}>
+                              <span className={styles.tosText}>TOS</span>
+                            </div>
+                          )}
+                        </div>
+                        <div className={styles.cardContent}>
+                          <h3>{product.name}</h3>
+                          <p className={styles.category}>{product.category?.name}</p>
+                          <p className={styles.price}>₹{product.price}</p>
+                          <p className={styles.stock}>Stock: {product.stock}</p>
+                          {product.featured && <span className={styles.badge}>Featured</span>}
+                          <div className={styles.cardActions}>
+                            <button onClick={() => editProduct(product)} className={styles.editBtn}>
+                              Edit
+                            </button>
+                            <button onClick={() => deleteProduct(product._id)} className={styles.deleteBtn}>
+                              Delete
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  };
+
+                  return <ProductCardWithFallback key={product._id} product={product} index={index} />;
+                })
               )}
             </div>
           </div>
@@ -821,11 +863,6 @@ export default function AdminDashboard() {
                       onChange={(e) => setCategoryForm({ ...categoryForm, description: e.target.value })}
                       rows="4"
                     />
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={(e) => setCategoryImage(e.target.files[0])}
-                    />
                     <div className={styles.formActions}>
                       <button type="submit" className={styles.submitBtn}>
                         {editingCategory ? 'Update' : 'Create'} Category
@@ -850,9 +887,6 @@ export default function AdminDashboard() {
             <div className={styles.grid}>
               {categories.map((category) => (
                 <div key={category._id} className={styles.card}>
-                  {category.image && (
-                    <img src={category.image.url} alt={category.name} className={styles.cardImage} />
-                  )}
                   <div className={styles.cardContent}>
                     <h3>{category.name}</h3>
                     <p>{category.description}</p>

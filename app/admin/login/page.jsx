@@ -13,9 +13,9 @@ export default function AdminLogin() {
   useEffect(() => {
     // Check if already logged in
     try {
-      const token = localStorage.getItem('adminToken');
-      if (token) {
-        router.push('/admin/dashboard');
+    const token = localStorage.getItem('adminToken');
+    if (token) {
+      router.push('/admin/dashboard');
       }
     } catch (error) {
       console.error('Error checking auth:', error);
@@ -47,9 +47,9 @@ export default function AdminLogin() {
 
       if (response.ok) {
         try {
-          localStorage.setItem('adminToken', data.token);
-          localStorage.setItem('adminData', JSON.stringify(data.admin));
-          router.push('/admin/dashboard');
+        localStorage.setItem('adminToken', data.token);
+        localStorage.setItem('adminData', JSON.stringify(data.admin));
+        router.push('/admin/dashboard');
         } catch (storageError) {
           console.error('Error saving to localStorage:', storageError);
           setError('Login successful but failed to save session. Please try again.');

@@ -299,12 +299,12 @@ export default function ProductDetailPage() {
             <div className={styles.categoryTag}>{product.category?.name}</div>
             <h1 className={styles.productTitle}>{product.name}</h1>
             <div className={styles.priceSection}>
-              <span className={styles.price}>${product.price}</span>
+              <span className={styles.price}>₹{product.price}</span>
               {product.stock > 0 && (
                 <span className={styles.inStock}>✓ In Stock ({product.stock} available)</span>
               )}
-              {product.stock === 0 && (
-                <span className={styles.outOfStock}>✕ Out of Stock</span>
+              {product.minOrderQuantity && product.minOrderQuantity > 1 && (
+                <span className={styles.minOrder}>📦 Minimum Order: {product.minOrderQuantity} units</span>
               )}
             </div>
 
@@ -390,7 +390,7 @@ export default function ProductDetailPage() {
                         )}
                         <div className={styles.relatedProductInfo}>
                           <h4 className={styles.relatedProductName}>{relatedProduct.name || 'Unnamed Product'}</h4>
-                          <p className={styles.relatedProductPrice}>${relatedProduct.price || 0}</p>
+                          <p className={styles.relatedProductPrice}>₹{relatedProduct.price || 0}</p>
                           {relatedProduct.featured && (
                             <span className={styles.relatedProductBadge}>⭐ Featured</span>
                           )}
@@ -430,7 +430,7 @@ export default function ProductDetailPage() {
                             {otherProduct.category?.name || 'Uncategorized'}
                           </div>
                           <h4 className={styles.relatedProductName}>{otherProduct.name || 'Unnamed Product'}</h4>
-                          <p className={styles.relatedProductPrice}>${otherProduct.price || 0}</p>
+                          <p className={styles.relatedProductPrice}>₹{otherProduct.price || 0}</p>
                           {otherProduct.featured && (
                             <span className={styles.relatedProductBadge}>⭐ Featured</span>
                           )}

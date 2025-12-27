@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import Product from '@/lib/models/Product';
+import Category from '@/lib/models/Category';
 import connectDB from '@/lib/db';
 import { authMiddleware } from '@/lib/middleware/auth';
 import { uploadToCloudinary } from '@/lib/cloudinary';
@@ -49,7 +50,7 @@ export async function GET(request) {
 
     const products = await Product.find(query)
       .populate('category', 'name slug')
-      .select('_id name slug price images category featured stock isActive createdAt') // Only select needed fields
+      .select('_id name slug price images category featured stock isActive minOrderQuantity createdAt') // Only select needed fields
       .sort({ createdAt: -1 })
       .limit(1000) // Limit results to prevent huge payloads
       .lean(); // Use lean() for better performance
@@ -120,6 +121,21 @@ export async function POST(request) {
     if (!mongoose.Types.ObjectId.isValid(category)) {
       return NextResponse.json(
         { message: 'Invalid category ID' },
+        { status: 400 }
+      );
+    }
+
+    // Check if category exists and is active
+    const categoryDoc = await Category.findById(category);
+    if (!categoryDoc) {
+      return NextResponse.json(
+        { message: 'Category not found. Cannot create product with non-existent category.' },
+        { status: 400 }
+      );
+    }
+    if (!categoryDoc.isActive) {
+      return NextResponse.json(
+        { message: 'Cannot create product for an inactive category.' },
         { status: 400 }
       );
     }

@@ -236,7 +236,7 @@ export default function ProductsPage() {
               e.target.style.display = 'none';
             }}
           >
-            <source src="/videos/products-hero.mp4" type="video/mp4" />
+            <source src="/videos/DemoImage.mp4" type="video/mp4" />
             Your browser does not support the video tag.
           </video>
           <div className={styles.heroOverlay}></div>
@@ -256,7 +256,10 @@ export default function ProductsPage() {
             onChange={(e) => setSearchTerm(e.target.value)}
             className={styles.searchInput}
           />
-          <button className={styles.searchBtn}>Search</button>
+          <button className={styles.searchBtn} type="button">
+            <span>🔍</span>
+            <span>Search</span>
+          </button>
         </div>
 
         <div className={styles.categoryFilter}>
@@ -307,9 +310,9 @@ export default function ProductsPage() {
                 </div>
 
                 <div className={styles.productsGrid}>
-                  {categoryProducts.slice(0, 4).map((product) => (
+                  {categoryProducts.slice(0, 4).map((product, index) => (
                     product && product._id ? (
-                      <ProductCard key={product._id} product={product} />
+                      <ProductCard key={product._id} product={product} index={index} />
                     ) : null
                   ))}
                 </div>
@@ -329,8 +332,8 @@ export default function ProductsPage() {
 
             {filteredProducts.length > 0 ? (
               <div className={styles.productsGrid}>
-                {filteredProducts.map((product) => (
-                  <ProductCard key={product._id} product={product} />
+                {filteredProducts.map((product, index) => (
+                  <ProductCard key={product._id} product={product} index={index} />
                 ))}
               </div>
             ) : (
@@ -348,20 +351,56 @@ export default function ProductsPage() {
 }
 
 // Memoized ProductCard component to prevent unnecessary re-renders
-const ProductCard = React.memo(function ProductCard({ product }) {
+const ProductCard = React.memo(function ProductCard({ product, index = 0 }) {
+  const [imageError, setImageError] = useState(false);
+  const [imageLoaded, setImageLoaded] = useState(false);
+
   if (!product || !product._id) {
     return null;
   }
 
+  // Different font styles for each card (cycling through styles)
+  const fontStyles = [
+    styles.tosStyle1, // Bold, Modern
+    styles.tosStyle2, // Elegant, Serif
+    styles.tosStyle3, // Playful, Rounded
+    styles.tosStyle4, // Geometric, Sans-serif
+    styles.tosStyle5, // Classic, Condensed
+    styles.tosStyle6, // Decorative, Script
+  ];
+  const tosStyleClass = fontStyles[index % fontStyles.length];
+
+  const handleImageError = () => {
+    setImageError(true);
+    setImageLoaded(false);
+  };
+
+  const handleImageLoad = () => {
+    setImageLoaded(true);
+    setImageError(false);
+  };
+
   try {
+    const hasImage = product.images && Array.isArray(product.images) && product.images[0] && product.images[0].url;
+    const showTOSFallback = !hasImage || imageError;
+
     return (
       <div className={styles.productCard}>
         {product.featured && <div className={styles.featuredBadge}>Featured</div>}
         <Link href={`/products/${product._id}`} className={styles.imageContainer}>
-          {product.images && Array.isArray(product.images) && product.images[0] && product.images[0].url ? (
-            <img src={product.images[0].url} alt={product.name || 'Product'} />
-          ) : (
-            <div className={styles.noImage}>No Image</div>
+          {hasImage && !imageError ? (
+            <img 
+              src={product.images[0].url} 
+              alt={product.name || 'Product'}
+              onError={handleImageError}
+              onLoad={handleImageLoad}
+              style={{ display: imageLoaded ? 'block' : 'none' }}
+            />
+          ) : null}
+          {showTOSFallback && (
+            <div className={`${styles.tosFallback} ${tosStyleClass}`}>
+              <span className={styles.tosText}>TOS</span>
+            </div>
           )}
         </Link>
         <div className={styles.productInfo}>
@@ -389,13 +428,15 @@ const ProductCard = React.memo(function ProductCard({ product }) {
             </div>
           )}
           <div className={styles.productFooter}>
-            <div className={styles.price}>${product.price || 0}</div>
+            <div className={styles.price}>₹{product.price || 0}</div>
             <Link href={`/products/${product._id}`} className={styles.viewBtn}>View Details</Link>
           </div>
+          {product.minOrderQuantity && product.minOrderQuantity > 1 && (
+            <div className={styles.minOrderBadge}>Min. Order: {product.minOrderQuantity}</div>
+          )}
           {typeof product.stock === 'number' && product.stock < 10 && product.stock > 0 && (
             <div className={styles.lowStock}>Only {product.stock} left!</div>
           )}
-          {typeof product.stock === 'number' && product.stock === 0 && <div className={styles.outOfStock}>Out of Stock</div>}
         </div>
       </div>
     );
