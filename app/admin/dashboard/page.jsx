@@ -116,11 +116,10 @@ export default function AdminDashboard() {
       // Handle products response
       if (productsRes.ok && productsContentType?.includes('application/json')) {
       const productsData = await productsRes.json();
-        setProducts(productsData);
+        setProducts(Array.isArray(productsData) ? productsData : []);
       } else {
         console.warn(`Failed to fetch products: ${productsRes.status} ${productsRes.statusText}`);
         setProducts([]);
-        setFilteredProducts([]);
       }
 
       // Handle categories response
@@ -803,22 +802,22 @@ export default function AdminDashboard() {
                             </div>
                           )}
                         </div>
-                        <div className={styles.cardContent}>
-                          <h3>{product.name}</h3>
-                          <p className={styles.category}>{product.category?.name}</p>
+                  <div className={styles.cardContent}>
+                    <h3>{product.name}</h3>
+                    <p className={styles.category}>{product.category?.name}</p>
                           <p className={styles.price}>₹{product.price}</p>
-                          <p className={styles.stock}>Stock: {product.stock}</p>
-                          {product.featured && <span className={styles.badge}>Featured</span>}
-                          <div className={styles.cardActions}>
-                            <button onClick={() => editProduct(product)} className={styles.editBtn}>
-                              Edit
-                            </button>
-                            <button onClick={() => deleteProduct(product._id)} className={styles.deleteBtn}>
-                              Delete
-                            </button>
-                          </div>
-                        </div>
-                      </div>
+                    <p className={styles.stock}>Stock: {product.stock}</p>
+                    {product.featured && <span className={styles.badge}>Featured</span>}
+                    <div className={styles.cardActions}>
+                      <button onClick={() => editProduct(product)} className={styles.editBtn}>
+                        Edit
+                      </button>
+                      <button onClick={() => deleteProduct(product._id)} className={styles.deleteBtn}>
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                </div>
                     );
                   };
 

@@ -227,7 +227,10 @@ export async function PUT(request, { params }) {
           publicId: result.public_id,
         }));
 
-        product.images = [...product.images, ...newImages];
+        // Ensure product.images is an array before spreading
+        product.images = Array.isArray(product.images) 
+          ? [...product.images, ...newImages]
+          : newImages;
       }
     }
 

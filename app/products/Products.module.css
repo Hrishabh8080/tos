@@ -684,10 +684,18 @@
 }
 
 .noProducts::before {
-  content: '🔍';
+  content: '📦';
   display: block;
   font-size: 60px;
   margin-bottom: 20px;
+  opacity: 0.7;
+}
+
+.noProducts p {
+  margin: 0;
+  color: #666;
+  font-size: 20px;
+  font-weight: 600;
 }
 
 /* Responsive Design */

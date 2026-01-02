@@ -17,7 +17,7 @@ export async function GET(request) {
 
     await connectDB();
     const categories = await Category.find()
-      .select('_id name slug description image isActive createdAt') // Only select needed fields
+      .select('_id name slug description isActive createdAt') // Only select needed fields
       .sort({ createdAt: -1 })
       .lean();
 

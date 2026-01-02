@@ -10,7 +10,8 @@
     "start:prod": "NODE_ENV=production next start",
     "lint": "next lint",
     "create-admin": "node scripts/createAdmin.mjs",
-    "setup-env": "node scripts/setup-env.js"
+    "setup-env": "node scripts/setup-env.js",
+    "check-db": "node scripts/check-db-connection.mjs"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",

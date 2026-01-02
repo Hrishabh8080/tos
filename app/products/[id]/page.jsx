@@ -233,7 +233,21 @@ export default function ProductDetailPage() {
   }
 
   if (!product) {
-    return null;
+    return (
+      <>
+        <Header />
+        <div className={styles.container}>
+          <div className={styles.noProduct}>
+            <div className={styles.noProductIcon}>📦</div>
+            <h2>Product Not Available</h2>
+            <p>The product you're looking for doesn't exist or has been removed.</p>
+            <Link href="/products" className={styles.backToProducts}>
+              ← Back to Products
+            </Link>
+          </div>
+        </div>
+      </>
+    );
   }
 
   return (
@@ -361,10 +375,10 @@ export default function ProductDetailPage() {
         </div>
 
         {/* Related Products Section */}
-        {(memoizedRelatedProducts.length > 0 || memoizedOtherProducts.length > 0) && (
+        {(memoizedRelatedProducts.length > 0 || memoizedOtherProducts.length > 0) ? (
           <div className={styles.relatedProductsSection}>
             {/* Same Category Products */}
-            {memoizedRelatedProducts.length > 0 && (
+            {memoizedRelatedProducts.length > 0 ? (
               <div className={styles.relatedSection}>
                 <h2 className={styles.relatedTitle}>
                   More from {product.category?.name}
@@ -400,10 +414,10 @@ export default function ProductDetailPage() {
                   })}
                 </div>
               </div>
-            )}
+            ) : null}
 
             {/* Other Category Products */}
-            {memoizedOtherProducts.length > 0 && (
+            {memoizedOtherProducts.length > 0 ? (
               <div className={styles.relatedSection}>
                 <h2 className={styles.relatedTitle}>Other Products</h2>
                 <div className={styles.relatedProductsGrid}>
@@ -440,7 +454,11 @@ export default function ProductDetailPage() {
                   })}
                 </div>
               </div>
-            )}
+            ) : null}
+          </div>
+        ) : (
+          <div className={styles.noRelatedProducts}>
+            <p>No related products available</p>
           </div>
         )}
       </div>
