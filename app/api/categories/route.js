@@ -29,7 +29,12 @@ export async function GET(request) {
       .sort({ createdAt: -1 })
       .lean();
 
-    return NextResponse.json(categories);
+    return NextResponse.json(categories, {
+      headers: {
+        // Categories change rarely — cache longer at the browser/CDN
+        'Cache-Control': 'public, max-age=60, s-maxage=300, stale-while-revalidate=600',
+      },
+    });
   } catch (error) {
     return NextResponse.json(
       { message: 'Server error. Please try again later.' },

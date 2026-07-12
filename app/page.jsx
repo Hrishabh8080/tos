@@ -1,37 +1,52 @@
-import Footer from "../components/Footer/Footer";
-import Header from "../components/Header/Header";
-import Carousel from "../components/Carousal/Carousal";
-import CSS from "./page.module.css"
-import About from "../components/About/About";
-import WhyChooseUs from "../components/WhyChooseUs/WhyChooseUs";
-import OurClient from "../components/OurClient/OurClient";
-import ContactForm from "../components/ContactForm/ContactForm";
-import Testimonial from "@/components/Testimonial/Testimonial";
+import Header from "@/components/Header/Header";
+import Footer from "@/components/Footer/Footer";
+import Hero from "@/components/home/Hero";
+import StatsBand from "@/components/home/StatsBand";
+import WhyChooseUs from "@/components/home/WhyChooseUs";
+import Brands from "@/components/home/Brands";
+import ProductRail from "@/components/home/ProductRail";
+import Industries from "@/components/home/Industries";
+import HowItWorks from "@/components/home/HowItWorks";
+import Testimonials from "@/components/home/Testimonials";
+import BulkBanner from "@/components/home/BulkBanner";
+import ContactCTA from "@/components/home/ContactCTA";
 
 export const metadata = {
-  title: 'Total Office Solutions | PVC, MS Pipes, Wires & Cables - TOSelectricals.com',
-  description: 'Discover Total Office Solutions at TOSelectricals.com! Your go-to source for high-quality PVC & MS pipes, wires, cables, and switches. Shop now!',
-  keywords: 'Total Office Solutions, electrical supplies, PVC pipes, MS pipes, electrical conduits, electrical cables, KEI wires, Polycab wires, Finolex wires, Havells wires, ABB distribution boards, Schneider MCBs, Legrand MCCBs, electrical switches, Anchor switch plates, Northwest sockets, TOSelectricals',
-  openGraph: {
-    title: 'Total Office Solutions | Premium PVC & MS Pipes, Wires & Cables',
-    description: 'Explore Total Office Solutions at TOSelectricals.com for premium electrical solutions!',
-    url: 'https://www.toselectricals.com',
-  },
+  title: "Wholesale Electrical & Office Supply Partner for Businesses",
+  description:
+    "Total Office Solutions — trusted B2B wholesale supplier of genuine electrical products, wires, cables, switchgear & office supplies. Bulk supply, corporate orders, fast delivery, authorized brands.",
 };
-
 
 export default function Home() {
   return (
-    <section className={CSS.mainSection}>
+    <>
       <Header />
-      <Carousel />
-      <About />
-      <WhyChooseUs />
-      <OurClient type={1} />
-      <Testimonial />
-      <OurClient type={2} />
-      <ContactForm />
+      <main>
+        <Hero />
+        <StatsBand />
+        <WhyChooseUs />
+        <Brands />
+        <ProductRail
+          eyebrow="Featured Products"
+          title="Handpicked bestsellers for bulk buyers"
+          subtitle="Top-moving products across wires, switchgear and office essentials."
+          endpoint="/api/products?featured=true"
+          hideIfEmpty
+        />
+        <Industries />
+        <HowItWorks />
+        <Testimonials />
+        <BulkBanner />
+        <ProductRail
+          eyebrow="Latest Products"
+          title="Freshly added to our catalogue"
+          subtitle="The newest additions from India's leading electrical brands."
+          endpoint="/api/products"
+          tone="soft"
+        />
+        <ContactCTA />
+      </main>
       <Footer />
-    </section>
+    </>
   );
 }

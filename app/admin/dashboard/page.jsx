@@ -1,8 +1,24 @@
 'use client';
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { deduplicatedFetch } from '@/lib/utils/fetchCache';
+import { deduplicatedFetch, clearCacheForPattern } from '@/lib/utils/fetchCache';
+import VariantManager from '@/components/admin/VariantManager';
+import ProductImages from '@/components/admin/ProductImages';
+import { titleCase } from '@/lib/utils/format';
 import styles from './Dashboard.module.css';
+
+/** Invalidate the public storefront's client caches so admin changes show immediately. */
+function clearPublicCaches() {
+  try {
+    sessionStorage.removeItem('tos_products_cache');
+    sessionStorage.removeItem('tos_categories_cache');
+    Object.keys(sessionStorage).forEach((k) => {
+      if (k.startsWith('tos_rail_') || k.startsWith('tos_product_') || k.startsWith('tos_related_')) {
+        sessionStorage.removeItem(k);
+      }
+    });
+  } catch (e) {}
+}
 
 export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState('products');
@@ -24,8 +40,12 @@ export default function AdminDashboard() {
     category: '',
     stock: '',
     minOrderQuantity: '',
+    unit: '',
     featured: false,
+    isActive: true,
     specifications: {},
+    attributes: [],
+    variants: [],
   });
 
   const [categoryForm, setCategoryForm] = useState({
@@ -33,7 +53,8 @@ export default function AdminDashboard() {
     description: '',
   });
 
-  const [productImages, setProductImages] = useState([]);
+  const [existingImages, setExistingImages] = useState([]);
+  const [imageItems, setImageItems] = useState([]); // from ProductImages manager (ordered)
   const [submittingProduct, setSubmittingProduct] = useState(false);
   const [submittingCategory, setSubmittingCategory] = useState(false);
 
@@ -174,12 +195,25 @@ export default function AdminDashboard() {
     formData.append('category', productForm.category);
     formData.append('stock', productForm.stock);
     formData.append('minOrderQuantity', productForm.minOrderQuantity);
+    formData.append('unit', productForm.unit || '');
     formData.append('featured', productForm.featured);
+    formData.append('isActive', productForm.isActive);
     formData.append('specifications', JSON.stringify(productForm.specifications));
+    formData.append('attributes', JSON.stringify(productForm.attributes || []));
+    formData.append('variants', JSON.stringify(productForm.variants || []));
 
-    productImages.forEach((image) => {
-      formData.append('images', image);
+    // Ordered images from the manager (cover = first). New optimized blobs are
+    // uploaded in order; existing images are referenced by publicId. The server
+    // rebuilds the order and removes any images that were dropped (Cloudinary cleanup).
+    const imagesOrder = imageItems.map((it) => (it.kind === 'existing' ? it.publicId : 'NEW'));
+    imageItems.forEach((it, idx) => {
+      if (it.kind === 'new' && it.blob) {
+        const type = it.blob.type || 'image/webp';
+        const ext = type.includes('jpeg') ? 'jpg' : type.includes('png') ? 'png' : 'webp';
+        formData.append('images', new File([it.blob], `image-${idx}.${ext}`, { type }));
+      }
     });
+    formData.append('imagesOrder', JSON.stringify(imagesOrder));
 
     try {
       const url = editingProduct
@@ -199,6 +233,8 @@ export default function AdminDashboard() {
         setShowProductForm(false);
         setEditingProduct(null);
         resetProductForm();
+        clearCacheForPattern('/api/products');
+        clearPublicCaches();
         fetchData();
       }
     } catch (error) {
@@ -251,6 +287,9 @@ export default function AdminDashboard() {
         setShowCategoryForm(false);
         setEditingCategory(null);
         resetCategoryForm();
+        clearCacheForPattern('/api/categories');
+        clearCacheForPattern('/api/products');
+        clearPublicCaches();
         fetchData();
       }
     } catch (error) {
@@ -288,7 +327,10 @@ export default function AdminDashboard() {
       });
 
       if (response.ok) {
-        alert('Product deleted successfully!');
+        // Instant UI update + clear the client response cache so the refetch is fresh
+        setProducts((prev) => prev.filter((p) => String(p._id) !== String(id)));
+        clearCacheForPattern('/api/products');
+        clearPublicCaches();
         fetchData();
       }
     } catch (error) {
@@ -323,7 +365,10 @@ export default function AdminDashboard() {
       });
 
       if (response.ok) {
-        alert('Category deleted successfully!');
+        setCategories((prev) => prev.filter((c) => String(c._id) !== String(id)));
+        clearCacheForPattern('/api/categories');
+        clearCacheForPattern('/api/products');
+        clearPublicCaches();
         fetchData();
       }
     } catch (error) {
@@ -339,9 +384,24 @@ export default function AdminDashboard() {
       category: product.category._id,
       stock: product.stock,
       minOrderQuantity: product.minOrderQuantity || 1,
+      unit: product.unit || '',
       featured: product.featured,
+      isActive: product.isActive !== false,
       specifications: product.specifications || {},
+      attributes: (product.attributes || []).map((a) => ({ name: a.name, values: [...(a.values || [])] })),
+      variants: (product.variants || []).map((v) => ({
+        options: Array.isArray(v.options) && v.options.length
+          ? v.options.map((o) => ({ name: o.name, value: o.value }))
+          : (v.size ? [{ name: 'Size', value: v.size }] : []),
+        price: v.price ?? '',
+        stock: v.stock ?? 0,
+        sku: v.sku || '',
+        minOrderQuantity: v.minOrderQuantity || 1,
+        status: v.status || 'available',
+        imageUrl: v.image?.url || '',
+      })),
     });
+    setExistingImages(Array.isArray(product.images) ? product.images.filter(Boolean) : []);
     setShowProductForm(true);
   };
 
@@ -365,7 +425,7 @@ export default function AdminDashboard() {
       featured: false,
       specifications: {},
     });
-    setProductImages([]);
+    setExistingImages([]);
   };
 
   const resetCategoryForm = () => {
@@ -501,10 +561,11 @@ export default function AdminDashboard() {
                   <form onSubmit={handleProductSubmit} className={styles.form}>
                     <input
                       type="text"
-                      placeholder="Product Name"
+                      placeholder="Product Name (e.g. Polycab FR Wire 1.5 sq mm)"
                       value={productForm.name}
                       onChange={(e) => setProductForm({ ...productForm, name: e.target.value })}
                       required
+                      autoFocus
                     />
                     <textarea
                       placeholder="Product Description (Detailed description of the product)"
@@ -533,6 +594,12 @@ export default function AdminDashboard() {
                         min="1"
                       />
                     </div>
+                    <input
+                      type="text"
+                      placeholder="Selling unit (optional, e.g. Meter, Piece, Coil, Litre)"
+                      value={productForm.unit || ''}
+                      onChange={(e) => setProductForm({ ...productForm, unit: e.target.value })}
+                    />
                     {categories.length === 0 ? (
                       <div className={styles.noCategoryWarning}>
                         ⚠️ No categories available! Please create a category first.
@@ -660,14 +727,24 @@ export default function AdminDashboard() {
                       />
                     </div>
 
-                    <label className={styles.checkbox}>
-                      <input
-                        type="checkbox"
-                        checked={productForm.featured}
-                        onChange={(e) => setProductForm({ ...productForm, featured: e.target.checked })}
-                      />
-                      Featured Product
-                    </label>
+                    <div className={styles.formRow}>
+                      <label className={styles.checkbox}>
+                        <input
+                          type="checkbox"
+                          checked={productForm.featured}
+                          onChange={(e) => setProductForm({ ...productForm, featured: e.target.checked })}
+                        />
+                        Featured Product
+                      </label>
+                      <label className={styles.checkbox}>
+                        <input
+                          type="checkbox"
+                          checked={productForm.isActive}
+                          onChange={(e) => setProductForm({ ...productForm, isActive: e.target.checked })}
+                        />
+                        Active (visible on website)
+                      </label>
+                    </div>
 
                     <div className={styles.specifications}>
                       <label>Specifications:</label>
@@ -683,11 +760,18 @@ export default function AdminDashboard() {
                       </div>
                     </div>
 
-                    <input
-                      type="file"
-                      multiple
-                      accept="image/*"
-                      onChange={(e) => setProductImages(Array.from(e.target.files))}
+                    <VariantManager
+                      attributes={productForm.attributes}
+                      variants={productForm.variants}
+                      sourceProducts={products.filter((p) => !editingProduct || p._id !== editingProduct._id)}
+                      onChange={({ attributes, variants }) =>
+                        setProductForm((f) => ({ ...f, attributes, variants }))
+                      }
+                    />
+
+                    <ProductImages
+                      initialImages={existingImages}
+                      onChange={setImageItems}
                     />
 
                     <div className={styles.formActions}>
@@ -811,11 +895,17 @@ export default function AdminDashboard() {
                           )}
                         </div>
                   <div className={styles.cardContent}>
-                    <h3>{product.name}</h3>
-                    <p className={styles.category}>{product.category?.name}</p>
+                    <h3>{titleCase(product.name)}</h3>
+                    <p className={styles.category}>{titleCase(product.category?.name)}</p>
                           <p className={styles.price}>₹{product.price}</p>
                     <p className={styles.stock}>Stock: {product.stock}</p>
-                    {product.featured && <span className={styles.badge}>Featured</span>}
+                    <div className={styles.cardBadges}>
+                      {product.featured && <span className={styles.badge}>Featured</span>}
+                      {product.isActive === false && <span className={styles.badgeInactive}>Inactive</span>}
+                      {Array.isArray(product.variants) && product.variants.length > 0 && (
+                        <span className={styles.badgeVariant}>{product.variants.length} variants</span>
+                      )}
+                    </div>
                     <div className={styles.cardActions}>
                       <button onClick={() => editProduct(product)} className={styles.editBtn}>
                         Edit
@@ -901,7 +991,7 @@ export default function AdminDashboard() {
               {categories.map((category) => (
                 <div key={category._id} className={styles.card}>
                   <div className={styles.cardContent}>
-                    <h3>{category.name}</h3>
+                    <h3>{titleCase(category.name)}</h3>
                     <p>{category.description}</p>
                     <div className={styles.cardActions}>
                       <button onClick={() => editCategory(category)} className={styles.editBtn}>

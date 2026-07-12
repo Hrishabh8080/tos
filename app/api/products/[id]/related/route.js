@@ -44,7 +44,7 @@ export async function GET(request, { params }) {
       _id: { $ne: id },
       isActive: true,
     })
-      .select('_id name price images category featured slug')
+      .select('_id name price images category featured slug minOrderQuantity unit attributes variants')
       .populate('category', 'name slug')
       .sort({ featured: -1, createdAt: -1 })
       .limit(8) // Limit to 8 related products
@@ -57,7 +57,7 @@ export async function GET(request, { params }) {
       _id: { $ne: id },
       isActive: true,
     })
-      .select('_id name price images category featured slug')
+      .select('_id name price images category featured slug minOrderQuantity unit attributes variants')
       .populate('category', 'name slug')
       .sort({ featured: -1, createdAt: -1 })
       .limit(8) // Limit to 8 other products

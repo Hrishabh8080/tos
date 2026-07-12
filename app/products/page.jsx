@@ -1,449 +1,347 @@
 'use client';
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import Link from 'next/link';
-import Header from '../../components/Header/Header';
+import Header from '@/components/Header/Header';
+import Footer from '@/components/Footer/Footer';
+import Icon from '@/components/ui/Icon';
+import ProductCard from '@/components/ui/ProductCard';
+import QuickView from '@/components/products/QuickView';
 import { deduplicatedFetch } from '@/lib/utils/fetchCache';
+import { getPriceRange } from '@/lib/utils/variants';
+import { titleCase } from '@/lib/utils/format';
+import { BRANDS } from '@/lib/site';
 import styles from './Products.module.css';
+
+const PRICE_BUCKETS = [
+  { key: 'all', label: 'All Prices' },
+  { key: '0-500', label: 'Under ₹500', min: 0, max: 500 },
+  { key: '500-2000', label: '₹500 – ₹2,000', min: 500, max: 2000 },
+  { key: '2000-5000', label: '₹2,000 – ₹5,000', min: 2000, max: 5000 },
+  { key: '5000+', label: 'Above ₹5,000', min: 5000, max: Infinity },
+];
+
+const SORTS = [
+  { key: 'featured', label: 'Featured' },
+  { key: 'newest', label: 'Newest' },
+  { key: 'price-asc', label: 'Price: Low to High' },
+  { key: 'price-desc', label: 'Price: High to Low' },
+  { key: 'name', label: 'Name: A–Z' },
+];
+
+// Product helpers (variant-aware)
+const priceOf = (p) => getPriceRange(p).min;
+const brandOf = (p) => {
+  const n = (p?.name || '').toLowerCase();
+  return BRANDS.find((b) => n.includes(b.name.toLowerCase()))?.name || null;
+};
 
 export default function ProductsPage() {
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
-  const [selectedCategory, setSelectedCategory] = useState('all');
-  const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    fetchData();
-  }, []);
+  // Filters
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedCategories, setSelectedCategories] = useState([]); // [] = all
+  const [selectedBrands, setSelectedBrands] = useState([]);
+  const [priceBucket, setPriceBucket] = useState('all');
+  const [sortBy, setSortBy] = useState('featured');
+
+  const [mobileFilters, setMobileFilters] = useState(false);
+  const [quickViewId, setQuickViewId] = useState(null);
+
+  useEffect(() => { fetchData(); }, []);
 
   const fetchData = async (forceRefresh = false) => {
     try {
-      const CACHE_KEY_PRODUCTS = 'tos_products_cache';
-      const CACHE_KEY_CATEGORIES = 'tos_categories_cache';
-      const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+      const CK_P = 'tos_products_cache';
+      const CK_C = 'tos_categories_cache';
+      const DUR = 5 * 60 * 1000;
 
-      // Check cache for products
+      // Use cache first. If BOTH products & categories are still fresh, serve them
+      // and SKIP the network entirely — no redundant API call on reload.
       if (!forceRefresh) {
         try {
-          const cachedProducts = sessionStorage.getItem(CACHE_KEY_PRODUCTS);
-          if (cachedProducts) {
-            const parsed = JSON.parse(cachedProducts);
-            if (parsed && parsed.data && parsed.timestamp && Date.now() - parsed.timestamp < CACHE_DURATION) {
-              const validProducts = Array.isArray(parsed.data) ? parsed.data.filter((product) => product && product.category) : [];
-              setProducts(validProducts);
-            } else {
-            }
+          const cp = JSON.parse(sessionStorage.getItem(CK_P) || 'null');
+          const cc = JSON.parse(sessionStorage.getItem(CK_C) || 'null');
+          const pFresh = cp?.data && cp?.timestamp && Date.now() - cp.timestamp < DUR;
+          const cFresh = cc?.data && cc?.timestamp && Date.now() - cc.timestamp < DUR;
+          if (pFresh) setProducts(Array.isArray(cp.data) ? cp.data.filter((p) => p && p.category) : []);
+          if (cFresh) setCategories(Array.isArray(cc.data) ? cc.data : []);
+          if (pFresh && cFresh) {
+            setLoading(false);
+            return; // fresh cache → do not hit the API again
           }
-        } catch (cacheError) {
-        }
+        } catch (e) {}
       }
 
-      // Check cache for categories
-      if (!forceRefresh) {
-        try {
-          const cachedCategories = sessionStorage.getItem(CACHE_KEY_CATEGORIES);
-          if (cachedCategories) {
-            const parsed = JSON.parse(cachedCategories);
-            if (parsed && parsed.data && parsed.timestamp && Date.now() - parsed.timestamp < CACHE_DURATION) {
-              const validCategories = Array.isArray(parsed.data) ? parsed.data : [];
-            setCategories(validCategories);
-            } else {
-            }
-          }
-        } catch (cacheError) {
-        }
-      }
-
-      // Fetch fresh data if cache is missing or expired (with deduplication)
-      const [productsRes, categoriesRes] = await Promise.all([
+      const [pRes, cRes] = await Promise.all([
         deduplicatedFetch('/api/products'),
         deduplicatedFetch('/api/categories'),
       ]);
 
-      // Check if response is JSON before parsing
-      const productsContentType = productsRes.headers.get('content-type');
-      const categoriesContentType = categoriesRes.headers.get('content-type');
-
-      // Handle products response
-      if (productsRes.ok && productsContentType?.includes('application/json')) {
-      const productsData = await productsRes.json();
-        // Filter out products without categories to prevent errors
-        const validProducts = productsData.filter((product) => product.category);
-        setProducts(validProducts);
-        
-        // Cache products
-        try {
-          sessionStorage.setItem(CACHE_KEY_PRODUCTS, JSON.stringify({
-            data: validProducts,
-            timestamp: Date.now()
-          }));
-        } catch (cacheError) {
-        }
-
-        // Log warning if any products were filtered out
-      } else {
-        // Don't clear state if we have cached data
-        if (!sessionStorage.getItem(CACHE_KEY_PRODUCTS)) {
-          setProducts([]);
-        }
+      if (pRes.ok && pRes.headers.get('content-type')?.includes('application/json')) {
+        const data = await pRes.json();
+        const valid = Array.isArray(data) ? data.filter((p) => p && p.category) : [];
+        setProducts(valid);
+        try { sessionStorage.setItem(CK_P, JSON.stringify({ data: valid, timestamp: Date.now() })); } catch (e) {}
       }
-
-      // Handle categories response
-      if (categoriesRes.ok && categoriesContentType?.includes('application/json')) {
-      const categoriesData = await categoriesRes.json();
-        setCategories(categoriesData);
-        
-        // Cache categories
-        try {
-          sessionStorage.setItem(CACHE_KEY_CATEGORIES, JSON.stringify({
-            data: categoriesData,
-            timestamp: Date.now()
-          }));
-        } catch (cacheError) {
-        }
-      } else {
-        // Don't clear state if we have cached data
-        if (!sessionStorage.getItem(CACHE_KEY_CATEGORIES)) {
-          setCategories([]);
-        }
+      if (cRes.ok && cRes.headers.get('content-type')?.includes('application/json')) {
+        const data = await cRes.json();
+        setCategories(Array.isArray(data) ? data : []);
+        try { sessionStorage.setItem(CK_C, JSON.stringify({ data, timestamp: Date.now() })); } catch (e) {}
       }
     } catch (error) {
-      // Try to use cached data if available
       try {
-        const cachedProducts = sessionStorage.getItem('tos_products_cache');
-        if (cachedProducts) {
-          const parsed = JSON.parse(cachedProducts);
-          if (parsed && parsed.data && Array.isArray(parsed.data)) {
-            const validProducts = parsed.data.filter((product) => product && product.category);
-            setProducts(validProducts);
-          }
-        } else {
-          setProducts([]);
-        }
-      } catch (cacheError) {
-        setProducts([]);
-        setFilteredProducts([]);
-      }
-
-      try {
-        const cachedCategories = sessionStorage.getItem('tos_categories_cache');
-        if (cachedCategories) {
-          const parsed = JSON.parse(cachedCategories);
-          if (parsed && parsed.data && Array.isArray(parsed.data)) {
-            setCategories(parsed.data);
-          }
-        } else {
-          setCategories([]);
-        }
-      } catch (cacheError) {
-        setCategories([]);
-      }
+        const cp = sessionStorage.getItem('tos_products_cache');
+        if (cp) { const parsed = JSON.parse(cp); if (Array.isArray(parsed?.data)) setProducts(parsed.data.filter((p) => p && p.category)); }
+        const cc = sessionStorage.getItem('tos_categories_cache');
+        if (cc) { const parsed = JSON.parse(cc); if (Array.isArray(parsed?.data)) setCategories(parsed.data); }
+      } catch (e) {}
     } finally {
       setLoading(false);
     }
   };
 
-  // Memoized filter function - only recalculates when dependencies change
-  const filteredProducts = useMemo(() => {
-    try {
-      // Start with products that have valid categories
-      if (!Array.isArray(products)) {
-        return [];
-      }
+  // Derived facets
+  const categoryCounts = useMemo(() => {
+    const m = {};
+    products.forEach((p) => { const id = p.category?._id; if (id) m[id] = (m[id] || 0) + 1; });
+    return m;
+  }, [products]);
 
-      let filtered = products.filter((product) => product && product.category);
+  const brandFacets = useMemo(() => {
+    const m = {};
+    products.forEach((p) => { const b = brandOf(p); if (b) m[b] = (m[b] || 0) + 1; });
+    return Object.entries(m).map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count);
+  }, [products]);
 
-    // Filter by category
-    if (selectedCategory !== 'all') {
-        filtered = filtered.filter(
-          (product) => product && product.category && product.category._id === selectedCategory
-        );
+  const filtered = useMemo(() => {
+    let list = products.filter((p) => p && p.category);
+
+    if (selectedCategories.length) list = list.filter((p) => selectedCategories.includes(p.category?._id));
+
+    if (searchTerm.trim()) {
+      const q = searchTerm.toLowerCase();
+      list = list.filter((p) => p.name?.toLowerCase().includes(q) || p.description?.toLowerCase().includes(q));
+    }
+    if (selectedBrands.length) list = list.filter((p) => selectedBrands.includes(brandOf(p)));
+
+    if (priceBucket !== 'all') {
+      const b = PRICE_BUCKETS.find((x) => x.key === priceBucket);
+      if (b) list = list.filter((p) => { const pr = priceOf(p); return pr >= b.min && pr < b.max; });
     }
 
-    // Filter by search term
-      if (searchTerm && searchTerm.trim()) {
-        const searchLower = searchTerm.toLowerCase();
-      filtered = filtered.filter(
-        (product) => {
-          if (!product || !product.name) return false;
-          const nameMatch = product.name.toLowerCase().includes(searchLower);
-          const descMatch = product.description 
-            ? product.description.toLowerCase().includes(searchLower) 
-            : false;
-          return nameMatch || descMatch;
-        }
-      );
+    const sorted = [...list];
+    switch (sortBy) {
+      case 'price-asc': sorted.sort((a, b) => priceOf(a) - priceOf(b)); break;
+      case 'price-desc': sorted.sort((a, b) => priceOf(b) - priceOf(a)); break;
+      case 'name': sorted.sort((a, b) => (a.name || '').localeCompare(b.name || '')); break;
+      case 'newest': sorted.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0)); break;
+      default: sorted.sort((a, b) => (b.featured ? 1 : 0) - (a.featured ? 1 : 0) || new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
     }
+    return sorted;
+  }, [products, selectedCategories, searchTerm, selectedBrands, priceBucket, sortBy]);
 
-      return filtered;
-    } catch (error) {
-      return [];
-    }
-  }, [products, selectedCategory, searchTerm]);
+  const toggleBrand = useCallback((name) => {
+    setSelectedBrands((prev) => (prev.includes(name) ? prev.filter((b) => b !== name) : [...prev, name]));
+  }, []);
 
-  // Memoized function to get products by category
-  const getProductsByCategory = useCallback((categoryId) => {
-    try {
-      if (!Array.isArray(filteredProducts) || !categoryId) {
-        return [];
-      }
-      return filteredProducts.filter(
-        (product) => product && product.category && product.category._id === categoryId
-      );
-    } catch (error) {
-      return [];
-    }
-  }, [filteredProducts]);
+  const toggleCategory = useCallback((id) => {
+    setSelectedCategories((prev) => (prev.includes(id) ? prev.filter((c) => c !== id) : [...prev, id]));
+  }, []);
 
-  if (loading) {
-    return (
-      <div className={styles.loading}>
-        <div className={styles.spinner}></div>
-        <p>Loading products...</p>
+  const activeFilterCount = selectedCategories.length + selectedBrands.length + (priceBucket !== 'all' ? 1 : 0);
+
+  const clearAll = () => {
+    setSelectedCategories([]); setSelectedBrands([]); setPriceBucket('all'); setSearchTerm('');
+  };
+
+  const FilterPanel = (
+    <div className={styles.filterInner}>
+      <div className={styles.filterHead}>
+        <h3><Icon name="filter" size={18} /> Filters</h3>
+        {activeFilterCount > 0 && <button className={styles.clearBtn} onClick={clearAll}>Clear all</button>}
       </div>
-    );
-  }
+
+      {/* Category */}
+      <div className={styles.filterGroup}>
+        <span className={styles.groupTitle}>Category</span>
+        <ul className={`${styles.optList} ${categories.length > 10 ? styles.optListScroll : ''}`}>
+          <li>
+            <button className={`${styles.opt} ${selectedCategories.length === 0 ? styles.optOn : ''}`} onClick={() => setSelectedCategories([])}>
+              <span>All Products</span><em>{products.length}</em>
+            </button>
+          </li>
+          {categories.map((c) => c && c._id ? (
+            <li key={c._id}>
+              <label className={styles.check}>
+                <input type="checkbox" checked={selectedCategories.includes(c._id)} onChange={() => toggleCategory(c._id)} />
+                <span className={styles.checkbox}><Icon name="check" size={13} /></span>
+                <span className={styles.checkLabel}>{titleCase(c.name)}</span>
+                <em>{categoryCounts[c._id] || 0}</em>
+              </label>
+            </li>
+          ) : null)}
+        </ul>
+      </div>
+
+      {/* Brand */}
+      {brandFacets.length > 0 && (
+        <div className={styles.filterGroup}>
+          <span className={styles.groupTitle}>Brand</span>
+          <ul className={`${styles.optList} ${brandFacets.length > 10 ? styles.optListScroll : ''}`}>
+            {brandFacets.map((b) => (
+              <li key={b.name}>
+                <label className={styles.check}>
+                  <input type="checkbox" checked={selectedBrands.includes(b.name)} onChange={() => toggleBrand(b.name)} />
+                  <span className={styles.checkbox}><Icon name="check" size={13} /></span>
+                  <span className={styles.checkLabel}>{b.name}</span>
+                  <em>{b.count}</em>
+                </label>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {/* Price */}
+      <div className={styles.filterGroup}>
+        <span className={styles.groupTitle}>Price Range</span>
+        <ul className={styles.optList}>
+          {PRICE_BUCKETS.map((b) => (
+            <li key={b.key}>
+              <label className={styles.radio}>
+                <input type="radio" name="price" checked={priceBucket === b.key} onChange={() => setPriceBucket(b.key)} />
+                <span className={styles.dot} />
+                <span>{b.label}</span>
+              </label>
+            </li>
+          ))}
+        </ul>
+      </div>
+
+    </div>
+  );
 
   return (
     <>
       <Header />
-      <div className={styles.container}>
-        {/* Hero Section */}
-        <section className={styles.hero}>
-          <video 
-            className={styles.heroVideo}
-            autoPlay
-            loop
-            muted
-            playsInline
-            onError={(e) => {
-              e.target.style.display = 'none';
-            }}
-          >
-            <source src="/videos/DemoImage.mp4" type="video/mp4" />
-            Your browser does not support the video tag.
-          </video>
-          <div className={styles.heroOverlay}></div>
-          <div className={styles.heroContent}>
-            <h1>Our Products</h1>
-            <p>Discover our wide range of quality products</p>
+
+      {/* Compact hero */}
+      <section className={styles.hero}>
+        <div className={styles.heroGrid} />
+        <div className={styles.heroInner}>
+          <nav className={styles.crumb}><Link href="/">Home</Link><Icon name="chevron" size={13} /><span>Products</span></nav>
+          <h1>Our Product Catalogue</h1>
+          <p>Genuine electrical & office supplies from India&apos;s leading brands — at wholesale rates.</p>
+          <div className={styles.heroSearch}>
+            <Icon name="search" size={20} />
+            <input type="text" placeholder="Search products, brands, categories…" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+            {searchTerm && <button onClick={() => setSearchTerm('')} aria-label="Clear"><Icon name="close" size={18} /></button>}
           </div>
-        </section>
-
-      {/* Search and Filter Section */}
-      <section className={styles.filterSection}>
-        <div className={styles.searchBar}>
-          <span className={styles.searchIcon}>🔍</span>
-          <input
-            type="text"
-            placeholder="Search products..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className={styles.searchInput}
-          />
-          {searchTerm && (
-            <button 
-              className={styles.clearBtn} 
-              type="button"
-              onClick={() => setSearchTerm('')}
-              aria-label="Clear search"
-            >
-              ✕
-            </button>
-          )}
-        </div>
-
-        <div className={styles.categoryFilter}>
-          <button
-            className={`${styles.categoryBtn} ${selectedCategory === 'all' ? styles.active : ''}`}
-            onClick={() => setSelectedCategory('all')}
-          >
-            All Products
-          </button>
-          {Array.isArray(categories) && categories.map((category) => (
-            category && category._id ? (
-            <button
-              key={category._id}
-              className={`${styles.categoryBtn} ${selectedCategory === category._id ? styles.active : ''}`}
-              onClick={() => setSelectedCategory(category._id)}
-            >
-                {category.name || 'Unnamed Category'}
-            </button>
-            ) : null
-          ))}
         </div>
       </section>
 
-      {/* Products Grid by Category */}
-      {selectedCategory === 'all' ? (
-        // Show products grouped by category
-        <div className={styles.mainContent}>
-          {!Array.isArray(products) || products.length === 0 ? (
-            <div className={styles.noProducts}>
-              <p>No products available</p>
-            </div>
-          ) : (
-            Array.isArray(categories) && categories.length > 0 ? (
-              categories.map((category) => {
-                if (!category || !category._id) return null;
-            const categoryProducts = getProductsByCategory(category._id);
-                if (!Array.isArray(categoryProducts) || categoryProducts.length === 0) return null;
-
-            return (
-              <section key={category._id} className={styles.categorySection}>
-                <div className={styles.categorySectionHeader}>
-                  <div>
-                        <h2>{category.name || 'Unnamed Category'}</h2>
-                    {category.description && <p>{category.description}</p>}
-                  </div>
-                  {categoryProducts.length > 4 && (
-                    <button
-                      onClick={() => setSelectedCategory(category._id)}
-                      className={styles.viewAllBtn}
-                    >
-                      View All →
-                    </button>
-                  )}
-                </div>
-
-                <div className={styles.productsGrid}>
-                      {categoryProducts.slice(0, 4).map((product, index) => (
-                        product && product._id ? (
-                          <ProductCard key={product._id} product={product} index={index} />
-                        ) : null
-                  ))}
-                </div>
-              </section>
-            );
-              })
-            ) : (
-              <div className={styles.noProducts}>
-                <p>No products available</p>
-              </div>
-            )
-          )}
-        </div>
-      ) : (
-        // Show filtered products
-        <div className={styles.mainContent}>
-          <section className={styles.categorySection}>
-            <div className={styles.productsCount}>
-              <h2>
-                {filteredProducts.length} Product{filteredProducts.length !== 1 ? 's' : ''} Found
-              </h2>
-            </div>
-
-            {filteredProducts.length > 0 ? (
-              <div className={styles.productsGrid}>
-                {filteredProducts.map((product, index) => (
-                  <ProductCard key={product._id} product={product} index={index} />
-                ))}
-              </div>
-            ) : (
-              <div className={styles.noProducts}>
-                <p>No products found</p>
-              </div>
-            )}
-          </section>
+      {/* Category cards */}
+      {categories.length > 0 && (
+        <div className={styles.catCards}>
+          <div className={styles.catCardsInner}>
+            <button className={`${styles.catCard} ${selectedCategories.length === 0 ? styles.catCardOn : ''}`} onClick={() => setSelectedCategories([])}>
+              <span className={styles.catIcon}><Icon name="layers" size={22} /></span>
+              <b>All Products</b><em>{products.length} items</em>
+            </button>
+            {categories.map((c) => c && c._id ? (
+              <button key={c._id} className={`${styles.catCard} ${selectedCategories.includes(c._id) ? styles.catCardOn : ''}`} onClick={() => toggleCategory(c._id)}>
+                <span className={styles.catIcon}><Icon name={selectedCategories.includes(c._id) ? 'check' : 'box'} size={22} /></span>
+                <b>{titleCase(c.name)}</b><em>{categoryCounts[c._id] || 0} items</em>
+              </button>
+            ) : null)}
+          </div>
         </div>
       )}
 
+      <div className={styles.layout}>
+        {/* Sidebar */}
+        <aside className={styles.sidebar}>{FilterPanel}</aside>
+
+        {/* Main */}
+        <main className={styles.main}>
+          <div className={styles.toolbar}>
+            <div className={styles.resultInfo}>
+              <button className={styles.mobFilterBtn} onClick={() => setMobileFilters(true)}>
+                <Icon name="filter" size={16} /> Filters {activeFilterCount > 0 && <span className={styles.filterCount}>{activeFilterCount}</span>}
+              </button>
+              <span className={styles.count}><b>{filtered.length}</b> product{filtered.length !== 1 ? 's' : ''}</span>
+            </div>
+            <label className={styles.sortWrap}>
+              <span>Sort</span>
+              <select value={sortBy} onChange={(e) => setSortBy(e.target.value)} className={styles.sortSelect}>
+                {SORTS.map((s) => <option key={s.key} value={s.key}>{s.label}</option>)}
+              </select>
+              <Icon name="chevron" size={15} className={styles.sortChev} />
+            </label>
+          </div>
+
+          {/* Active chips */}
+          {activeFilterCount > 0 && (
+            <div className={styles.activeChips}>
+              {selectedCategories.map((id) => (
+                <button key={id} className={styles.chip} onClick={() => toggleCategory(id)}>
+                  {titleCase(categories.find((c) => c._id === id)?.name)} <Icon name="close" size={13} />
+                </button>
+              ))}
+              {selectedBrands.map((b) => (
+                <button key={b} className={styles.chip} onClick={() => toggleBrand(b)}>{b} <Icon name="close" size={13} /></button>
+              ))}
+              {priceBucket !== 'all' && (
+                <button className={styles.chip} onClick={() => setPriceBucket('all')}>
+                  {PRICE_BUCKETS.find((x) => x.key === priceBucket)?.label} <Icon name="close" size={13} />
+                </button>
+              )}
+            </div>
+          )}
+
+          {loading ? (
+            <div className={styles.grid}>
+              {Array.from({ length: 8 }).map((_, i) => (
+                <div key={i} className={styles.skeleton}>
+                  <div className={styles.skMedia} />
+                  <div className={styles.skBody}><div className={styles.skLine} style={{ width: '55%' }} /><div className={styles.skLine} /><div className={styles.skLine} style={{ width: '40%' }} /></div>
+                </div>
+              ))}
+            </div>
+          ) : filtered.length > 0 ? (
+            <div className={styles.grid}>
+              {filtered.map((p) => <ProductCard key={p._id} product={p} onQuickView={setQuickViewId} />)}
+            </div>
+          ) : (
+            <div className={styles.empty}>
+              <Icon name="search" size={44} />
+              <h3>No products match your filters</h3>
+              <p>Try adjusting or clearing your filters to see more results.</p>
+              <button className={styles.emptyBtn} onClick={clearAll}>Clear all filters</button>
+            </div>
+          )}
+        </main>
       </div>
+
+      {/* Mobile filter drawer */}
+      <div className={`${styles.mobOverlay} ${mobileFilters ? styles.mobShow : ''}`} onClick={() => setMobileFilters(false)} />
+      <aside className={`${styles.mobDrawer} ${mobileFilters ? styles.mobOpen : ''}`}>
+        <div className={styles.mobHead}>
+          <h3>Filters</h3>
+          <button onClick={() => setMobileFilters(false)} aria-label="Close"><Icon name="close" size={22} /></button>
+        </div>
+        <div className={styles.mobBody}>{FilterPanel}</div>
+        <div className={styles.mobFoot}>
+          <button className={styles.applyBtn} onClick={() => setMobileFilters(false)}>Show {filtered.length} results</button>
+        </div>
+      </aside>
+
+      {quickViewId && <QuickView productId={quickViewId} onClose={() => setQuickViewId(null)} />}
+
+      <Footer />
     </>
   );
 }
-
-// Memoized ProductCard component to prevent unnecessary re-renders
-const ProductCard = React.memo(function ProductCard({ product, index = 0 }) {
-  const [imageError, setImageError] = useState(false);
-  const [imageLoaded, setImageLoaded] = useState(false);
-
-  if (!product || !product._id) {
-    return null;
-  }
-
-  // Different font styles for each card (cycling through styles)
-  const fontStyles = [
-    styles.tosStyle1, // Bold, Modern
-    styles.tosStyle2, // Elegant, Serif
-    styles.tosStyle3, // Playful, Rounded
-    styles.tosStyle4, // Geometric, Sans-serif
-    styles.tosStyle5, // Classic, Condensed
-    styles.tosStyle6, // Decorative, Script
-  ];
-  const tosStyleClass = fontStyles[index % fontStyles.length];
-
-  const handleImageError = () => {
-    setImageError(true);
-    setImageLoaded(false);
-  };
-
-  const handleImageLoad = () => {
-    setImageLoaded(true);
-    setImageError(false);
-  };
-
-  try {
-    const hasImage = product.images && Array.isArray(product.images) && product.images[0] && product.images[0].url;
-    const showTOSFallback = !hasImage || imageError;
-
-  return (
-    <div className={styles.productCard}>
-      {product.featured && <div className={styles.featuredBadge}>Featured</div>}
-        <Link href={`/products/${product._id}`} className={styles.imageContainer}>
-          {hasImage && !imageError ? (
-            <img 
-              src={product.images[0].url} 
-              alt={product.name || 'Product'}
-              onError={handleImageError}
-              onLoad={handleImageLoad}
-              style={{ display: imageLoaded ? 'block' : 'none' }}
-            />
-          ) : null}
-          {showTOSFallback && (
-            <div className={`${styles.tosFallback} ${tosStyleClass}`}>
-              <span className={styles.tosText}>TOS</span>
-            </div>
-        )}
-        </Link>
-      <div className={styles.productInfo}>
-          <div className={styles.categoryTag}>{product.category?.name || 'Uncategorized'}</div>
-          <Link href={`/products/${product._id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
-            <h3 style={{ cursor: 'pointer' }}>{product.name || 'Unnamed Product'}</h3>
-          </Link>
-        <p className={styles.description}>
-            {product.description && product.description.length > 100
-            ? product.description.substring(0, 100) + '...'
-              : product.description || 'No description available'}
-        </p>
-          {product.specifications && typeof product.specifications === 'object' && Object.keys(product.specifications).length > 0 && (
-          <div className={styles.specifications}>
-            {Object.entries(product.specifications)
-              .slice(0, 2)
-              .map(([key, value]) => (
-                  value && key ? (
-                  <div key={key} className={styles.specItem}>
-                      <span className={styles.specKey}>{String(key)}:</span>
-                      <span className={styles.specValue}>{String(value)}</span>
-                  </div>
-                  ) : null
-              ))}
-          </div>
-        )}
-        <div className={styles.productFooter}>
-            <div className={styles.price}>₹{product.price || 0}</div>
-            <Link href={`/products/${product._id}`} className={styles.viewBtn}>View Details</Link>
-        </div>
-          {product.minOrderQuantity && product.minOrderQuantity > 1 && (
-            <div className={styles.minOrderBadge}>Min. Order: {product.minOrderQuantity}</div>
-          )}
-          {typeof product.stock === 'number' && product.stock < 10 && product.stock > 0 && (
-          <div className={styles.lowStock}>Only {product.stock} left!</div>
-        )}
-      </div>
-    </div>
-  );
-  } catch (error) {
-    return null;
-}
-});

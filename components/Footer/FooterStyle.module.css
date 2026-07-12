@@ -1,74 +1,122 @@
-/* Footer main container */
 .footer {
-  background-color: var(--primary-color);
-  color: #ffffff;
-  padding: 40px 20px;
-  text-align: left;
+  background: var(--primary);
+  color: rgba(255, 255, 255, .72);
+  margin-top: 80px;
 }
 
-/* Container for the footer sections */
-.container {
+/* Trust strip */
+.trust {
+  background: var(--primary-700);
+  border-bottom: 1px solid rgba(255, 255, 255, .08);
+}
+.trustInner {
+  max-width: var(--container-wide);
+  margin-inline: auto;
+  padding: 20px 24px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px 30px;
+  justify-content: center;
+}
+.trustItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: .88rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, .9);
+}
+.trustItem svg { color: var(--accent); }
+
+/* Main */
+.main { max-width: var(--container-wide); margin-inline: auto; padding: 60px 24px 40px; }
+.grid {
+  display: grid;
+  grid-template-columns: 1.6fr 1fr 1fr 1.4fr;
+  gap: 40px;
+}
+
+.brand { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; }
+.logoMark {
+  display: grid; place-items: center;
+  width: 44px; height: 44px;
+  border-radius: 12px;
+  background: var(--grad-blue);
+  color: #fff; font-family: var(--font-display); font-weight: 800; font-size: .95rem;
+}
+.brand strong { font-family: var(--font-display); font-size: 1.12rem; color: #fff; }
+.desc { font-size: .92rem; line-height: 1.7; max-width: 340px; }
+.social { display: flex; gap: 10px; margin-top: 20px; }
+.social a {
+  display: grid; place-items: center;
+  width: 40px; height: 40px;
+  border-radius: 11px;
+  background: rgba(255, 255, 255, .08);
+  color: #fff;
+  transition: background .25s, transform .25s, color .25s;
+}
+.social a:hover { background: var(--accent); transform: translateY(-3px); }
+
+.col h4 {
+  color: #fff;
+  font-size: 1rem;
+  margin-bottom: 18px;
+  font-family: var(--font-display);
+}
+.col ul { list-style: none; display: flex; flex-direction: column; gap: 11px; }
+.col ul li a { font-size: .92rem; transition: color .2s, padding .2s; }
+.col ul li a:hover { color: var(--accent); padding-left: 4px; }
+.brandList { columns: 2; }
+
+.contact li { display: flex; gap: 11px; align-items: flex-start; font-size: .9rem; line-height: 1.5; }
+.contact li svg { color: var(--accent); flex-shrink: 0; margin-top: 2px; }
+.contact li span { display: flex; flex-direction: column; }
+.contact a { transition: color .2s; }
+.contact a:hover { color: #fff; }
+
+.cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 22px;
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: .9rem;
+  color: #fff;
+  padding: 11px 20px;
+  border-radius: var(--r-full);
+  background: var(--grad-accent);
+  box-shadow: var(--sh-accent);
+  transition: transform .25s var(--ease), box-shadow .25s var(--ease);
+}
+.cta:hover { transform: translateY(-2px); }
+.cta svg { transition: transform .25s var(--ease); }
+.cta:hover svg { transform: translateX(3px); }
+
+/* Bottom */
+.bottom { border-top: 1px solid rgba(255, 255, 255, .08); }
+.bottomInner {
+  max-width: var(--container-wide);
+  margin-inline: auto;
+  padding: 22px 24px;
   display: flex;
   justify-content: space-between;
-  margin-bottom: 30px;
+  gap: 12px;
   flex-wrap: wrap;
-  /* Makes the layout responsive */
+  font-size: .84rem;
 }
+.gst { color: rgba(255, 255, 255, .55); }
 
-/* Individual footer sections (About Us, Contact) */
-.section {
-  flex: 1;
-  margin: 0 20px;
-  max-width: 400px;
-  /* Ensures sections don't stretch too wide */
+@media (max-width: 900px) {
+  .grid { grid-template-columns: 1fr 1fr; gap: 34px; }
+  .about { grid-column: 1 / -1; }
 }
-
-.title {
-  font-size: 18px;
-  font-weight: 600;
-  margin-bottom: 15px;
-  color: #f1c40f;
-  /* Golden color for titles */
+@media (max-width: 640px) {
+  .trustInner { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 18px; justify-items: start; }
+  .trustItem { font-size: .84rem; }
 }
-
-.content {
-  font-size: 14px;
-  line-height: 1.6;
-  margin-bottom: 10px;
-  font-size: 16px;
-}
-
-.content a {
-  color: #ffffff;
-  text-decoration: none;
-}
-
-.content a:hover {
-  text-decoration: underline;
-  cursor: pointer;
-  transition: color 0.3s ease;
-}
-
-/* Styling the copyright section */
-.copyright {
-  text-align: center;
-  margin-top: 30px;
-  font-size: 14px;
-  color: #BDC3C7;
-}
-
-/* Responsive design */
-@media (max-width: 768px) {
-  .container {
-    flex-direction: column;
-    align-items: center;
-  }
-
-  .section {
-    margin-bottom: 20px;
-  }
-
-  .copyright {
-    margin-top: 20px;
-  }
+@media (max-width: 560px) {
+  .grid { grid-template-columns: 1fr; }
+  .brandList { columns: 1; }
+  .bottomInner { flex-direction: column; }
 }

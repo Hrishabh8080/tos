@@ -1,0 +1,34 @@
+.wrap { max-width: 640px; margin-bottom: 44px; }
+.center { margin-inline: auto; text-align: center; }
+
+.eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: .78rem;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--secondary);
+  background: rgba(37, 99, 235, .08);
+  padding: 6px 14px;
+  border-radius: var(--r-full);
+  margin-bottom: 18px;
+}
+.dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
+
+.title {
+  font-size: clamp(1.7rem, 3.4vw, 2.6rem);
+  color: var(--text);
+  margin-bottom: 14px;
+}
+.subtitle {
+  font-size: 1.05rem;
+  color: var(--text-3);
+  line-height: 1.65;
+}
+
+.light .title { color: #fff; }
+.light .subtitle { color: rgba(255, 255, 255, .72); }
+.light .eyebrow { color: #fff; background: rgba(255, 255, 255, .12); }

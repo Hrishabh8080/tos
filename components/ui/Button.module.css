@@ -1,0 +1,51 @@
+.btn {
+  --btn-bg: var(--secondary);
+  --btn-fg: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  font-family: var(--font-display);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  border: 1px solid transparent;
+  border-radius: var(--r-full);
+  background: var(--btn-bg);
+  color: var(--btn-fg);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: transform .25s var(--ease), box-shadow .25s var(--ease),
+    background .25s var(--ease), color .25s var(--ease), border-color .25s var(--ease);
+  position: relative;
+  isolation: isolate;
+}
+.btn:active { transform: translateY(1px); }
+.btn:focus-visible { outline: 3px solid rgba(37, 99, 235, .35); outline-offset: 2px; }
+
+.ico { flex-shrink: 0; transition: transform .3s var(--ease); }
+.btn:hover .ico { transform: translateX(3px); }
+
+/* sizes */
+.sm { padding: 9px 16px; font-size: .84rem; }
+.md { padding: 13px 24px; font-size: .95rem; }
+.lg { padding: 16px 30px; font-size: 1.02rem; }
+.full { width: 100%; }
+
+/* primary — blue with orange hover accent */
+.primary { background: var(--grad-blue); box-shadow: var(--sh-blue); }
+.primary:hover { background: var(--grad-accent); box-shadow: var(--sh-accent); transform: translateY(-2px); }
+
+.accent { background: var(--grad-accent); box-shadow: var(--sh-accent); }
+.accent:hover { transform: translateY(-2px); box-shadow: 0 20px 40px -14px rgba(249, 115, 22, .6); }
+
+.dark { background: var(--primary); color: #fff; }
+.dark:hover { background: var(--accent); transform: translateY(-2px); box-shadow: var(--sh-accent); }
+
+.outline { background: transparent; border-color: var(--line-strong); color: var(--text); }
+.outline:hover { border-color: var(--secondary); color: var(--secondary); background: rgba(37, 99, 235, .05); transform: translateY(-2px); }
+
+.ghost { background: rgba(255, 255, 255, .12); color: #fff; border-color: rgba(255, 255, 255, .28); backdrop-filter: blur(8px); }
+.ghost:hover { background: rgba(255, 255, 255, .22); transform: translateY(-2px); }
+
+.whatsapp { background: #25D366; color: #06331b; }
+.whatsapp:hover { background: #1ebe5a; transform: translateY(-2px); box-shadow: 0 18px 34px -14px rgba(37, 211, 102, .6); }

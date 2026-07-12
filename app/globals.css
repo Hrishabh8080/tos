@@ -1,5 +1,71 @@
+/* ============================================================
+   TOTAL OFFICE SOLUTIONS — Design System / Global Tokens
+   Premium B2B wholesale supplier theme
+   ============================================================ */
+
 :root {
-  --primary-color: #2C3E50;
+  /* ---- Brand palette ---- */
+  --primary: #0F172A;        /* slate-900 — headings, dark sections */
+  --primary-600: #1E293B;
+  --primary-700: #0B1220;
+  --secondary: #2563EB;      /* blue-600 — primary actions/links */
+  --secondary-600: #1D4ED8;
+  --secondary-700: #1E40AF;
+  --accent: #F97316;         /* orange-500 — hover accents */
+  --accent-600: #EA580C;
+
+  /* ---- Surfaces ---- */
+  --bg: #F8FAFC;             /* app background */
+  --bg-soft: #F1F5F9;
+  --card: #FFFFFF;
+  --line: #E7ECF3;           /* hairline borders */
+  --line-strong: #D6DEE8;
+
+  /* ---- Text ---- */
+  --text: #0F172A;
+  --text-2: #334155;         /* body */
+  --text-3: #64748B;         /* muted */
+  --text-inv: #F8FAFC;
+
+  /* ---- Semantic ---- */
+  --success: #16A34A;
+  --success-bg: #ECFDF5;
+  --warn: #D97706;
+  --danger: #DC2626;
+
+  /* ---- Gradients ---- */
+  --grad-primary: linear-gradient(135deg, #0F172A 0%, #1E293B 55%, #1E40AF 140%);
+  --grad-blue: linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%);
+  --grad-accent: linear-gradient(135deg, #F97316 0%, #EA580C 100%);
+  --grad-sheen: linear-gradient(180deg, rgba(255,255,255,.9), rgba(255,255,255,.5));
+
+  /* ---- Radii ---- */
+  --r-sm: 10px;
+  --r-md: 14px;
+  --r-lg: 20px;
+  --r-xl: 28px;
+  --r-full: 999px;
+
+  /* ---- Shadows (soft, layered) ---- */
+  --sh-xs: 0 1px 2px rgba(15, 23, 42, .06);
+  --sh-sm: 0 2px 8px rgba(15, 23, 42, .06);
+  --sh-md: 0 10px 30px -12px rgba(15, 23, 42, .18);
+  --sh-lg: 0 24px 60px -20px rgba(15, 23, 42, .28);
+  --sh-blue: 0 16px 34px -14px rgba(37, 99, 235, .55);
+  --sh-accent: 0 16px 34px -14px rgba(249, 115, 22, .5);
+
+  /* ---- Layout ---- */
+  --container: 1200px;
+  --container-wide: 1320px;
+  --nav-h: 76px;
+
+  /* ---- Motion ---- */
+  --ease: cubic-bezier(.22, 1, .36, 1);
+  --ease-out: cubic-bezier(.16, 1, .3, 1);
+
+  /* ---- Fonts (wired by next/font in layout) ---- */
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-display: var(--font-sora), var(--font-sans);
 }
 
 * {
@@ -11,9 +77,54 @@
 html {
   scroll-behavior: smooth;
   scrollbar-width: thin;
+  scrollbar-color: var(--line-strong) transparent;
+  -webkit-text-size-adjust: 100%;
 }
 
 body {
-  scroll-behavior: smooth;
-  background: #f6f6f6;
+  background: var(--bg);
+  color: var(--text-2);
+  font-family: var(--font-sans);
+  font-size: 16px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  overflow-x: hidden;
+}
+
+h1, h2, h3, h4, h5 {
+  font-family: var(--font-display);
+  color: var(--text);
+  line-height: 1.12;
+  letter-spacing: -0.02em;
+  font-weight: 700;
+}
+
+a { color: inherit; text-decoration: none; }
+img, svg, video { max-width: 100%; display: block; }
+button { font-family: inherit; cursor: pointer; }
+input, textarea, select { font-family: inherit; }
+::selection { background: var(--secondary); color: #fff; }
+
+/* ---- Shared layout helpers ---- */
+.tos-container {
+  width: 100%;
+  max-width: var(--container);
+  margin-inline: auto;
+  padding-inline: 24px;
+}
+
+/* ---- Reduced motion ---- */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+@media (max-width: 640px) {
+  .tos-container { padding-inline: 18px; }
 }

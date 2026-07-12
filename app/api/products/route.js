@@ -5,6 +5,7 @@ import connectDB from '@/lib/db';
 import { authMiddleware } from '@/lib/middleware/auth';
 import { uploadToCloudinary } from '@/lib/cloudinary';
 import { clearCacheForPattern } from '@/lib/utils/fetchCache';
+import { parseVariants, parseAttributes } from '@/lib/utils/variants';
 import mongoose from 'mongoose';
 
 export const dynamic = 'force-dynamic';
@@ -50,12 +51,17 @@ export async function GET(request) {
 
     const products = await Product.find(query)
       .populate('category', 'name slug')
-      .select('_id name slug price images category featured stock isActive minOrderQuantity createdAt') // Only select needed fields
+      .select('_id name slug price images category featured stock isActive minOrderQuantity unit attributes variants createdAt') // Only select needed fields
       .sort({ createdAt: -1 })
       .limit(1000) // Limit results to prevent huge payloads
       .lean(); // Use lean() for better performance
 
-    return NextResponse.json(products);
+    return NextResponse.json(products, {
+      headers: {
+        // Browser/CDN cache: serve instantly on reload, revalidate in background
+        'Cache-Control': 'public, max-age=30, s-maxage=60, stale-while-revalidate=300',
+      },
+    });
   } catch (error) {
     return NextResponse.json(
       { message: 'Server error. Please try again later.' },
@@ -85,6 +91,9 @@ export async function POST(request) {
       specifications,
       stock,
       featured,
+      variants,
+      attributes,
+      unit,
     } = data;
 
     if (!name || !description || !price || !category) {
@@ -160,6 +169,12 @@ export async function POST(request) {
         productData.specifications = specifications;
       }
     }
+
+    if (unit) productData.unit = String(unit).trim().substring(0, 24);
+
+    // Handle optional dynamic attributes + variants (backward compatible — empty arrays if none)
+    productData.attributes = parseAttributes(attributes);
+    productData.variants = parseVariants(variants);
 
     // Upload images
     if (files.length > 0) {

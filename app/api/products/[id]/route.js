@@ -5,6 +5,7 @@ import connectDB from '@/lib/db';
 import { authMiddleware } from '@/lib/middleware/auth';
 import { uploadToCloudinary, deleteFromCloudinary } from '@/lib/cloudinary';
 import { clearCacheForPattern } from '@/lib/utils/fetchCache';
+import { parseVariants, parseAttributes } from '@/lib/utils/variants';
 import mongoose from 'mongoose';
 
 export const dynamic = 'force-dynamic';
@@ -150,12 +151,23 @@ export async function PUT(request, { params }) {
     // Handle specifications
     if (data.specifications) {
       try {
-        product.specifications = typeof data.specifications === 'string' 
-          ? JSON.parse(data.specifications) 
+        product.specifications = typeof data.specifications === 'string'
+          ? JSON.parse(data.specifications)
           : data.specifications;
       } catch (e) {
         product.specifications = data.specifications;
       }
+    }
+
+    if (data.unit !== undefined) product.unit = String(data.unit).trim().substring(0, 24);
+
+    // Handle optional dynamic attributes + variants — only touch when the field
+    // is sent, so existing products are never wiped by an unrelated update.
+    if (data.attributes !== undefined) {
+      product.attributes = parseAttributes(data.attributes);
+    }
+    if (data.variants !== undefined) {
+      product.variants = parseVariants(data.variants);
     }
 
     // Delete specified images
@@ -184,7 +196,8 @@ export async function PUT(request, { params }) {
       }
     }
 
-    // Upload new images
+    // Upload new images (in the order they were appended)
+    let newImages = [];
     if (files.length > 0) {
       const imageFiles = files
         .filter((f) => f.field === 'images')
@@ -194,7 +207,7 @@ export async function PUT(request, { params }) {
         // Validate file size (max 5MB per file)
         const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
         const ALLOWED_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
-        
+
         for (const file of imageFiles) {
           if (file.size > MAX_FILE_SIZE) {
             return NextResponse.json(
@@ -216,17 +229,48 @@ export async function PUT(request, { params }) {
         });
 
         const uploadResults = await Promise.all(uploadPromises);
-
-        const newImages = uploadResults.map((result) => ({
+        newImages = uploadResults.map((result) => ({
           url: result.secure_url,
           publicId: result.public_id,
         }));
-
-        // Ensure product.images is an array before spreading
-        product.images = Array.isArray(product.images) 
-          ? [...product.images, ...newImages]
-          : newImages;
       }
+    }
+
+    // Reconcile final image order (cover = first). `imagesOrder` is an ordered
+    // list of tokens: existing publicIds, or 'NEW' for each uploaded image (in
+    // upload order). Images no longer referenced are removed from Cloudinary.
+    if (data.imagesOrder) {
+      try {
+        const order = JSON.parse(data.imagesOrder);
+        if (Array.isArray(order)) {
+          const existingByPub = new Map((product.images || []).map((img) => [img.publicId, img]));
+          const finalImages = [];
+          let ni = 0;
+          for (const token of order) {
+            if (token === 'NEW') {
+              if (newImages[ni]) finalImages.push(newImages[ni++]);
+            } else {
+              const ex = existingByPub.get(token);
+              if (ex) finalImages.push(ex);
+            }
+          }
+          while (ni < newImages.length) finalImages.push(newImages[ni++]); // safety: append leftovers
+
+          // Remove images that are no longer part of the product from Cloudinary (safe)
+          const kept = new Set(finalImages.map((i) => i.publicId));
+          const removed = (product.images || []).filter((img) => img?.publicId && !kept.has(img.publicId));
+          await Promise.all(removed.map((img) => deleteFromCloudinary(img.publicId).catch(() => null)));
+
+          product.images = finalImages;
+        } else {
+          product.images = [...(product.images || []), ...newImages];
+        }
+      } catch {
+        product.images = [...(product.images || []), ...newImages];
+      }
+    } else if (newImages.length) {
+      // Legacy path — append new images
+      product.images = Array.isArray(product.images) ? [...product.images, ...newImages] : newImages;
     }
 
     await product.save();
@@ -281,7 +325,7 @@ export async function DELETE(request, { params }) {
       await Promise.all(
         product.images
           .filter((img) => img.publicId)
-          .map((img) => deleteFromCloudinary(img.publicId))
+          .map((img) => deleteFromCloudinary(img.publicId).catch(() => null)) // safe: never block product deletion
       );
     }
 

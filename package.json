@@ -8,26 +8,25 @@
     "build:prod": "NODE_ENV=production next build",
     "start": "next start",
     "start:prod": "NODE_ENV=production next start",
-    "lint": "next lint",
+    "lint": "eslint .",
     "create-admin": "node scripts/createAdmin.mjs",
     "setup-env": "node scripts/setup-env.js",
     "check-db": "node scripts/check-db-connection.mjs"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",
-    "cloudinary": "^1.41.3",
+    "cloudinary": "^2.10.0",
+    "framer-motion": "^12.42.2",
     "jsonwebtoken": "^9.0.3",
-    "mongoose": "^9.0.1",
-    "next": "15.5.7",
-    "nodemailer": "^7.0.11",
-    "react": "^19.2.1",
-    "react-dom": "^19.2.1",
-    "react-slick": "^0.31.0",
-    "slick-carousel": "^1.8.1"
+    "mongoose": "^9.7.4",
+    "next": "^16.2.10",
+    "nodemailer": "^9.0.3",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7"
   },
   "devDependencies": {
-    "@eslint/eslintrc": "^3.3.3",
-    "eslint": "^9.39.1",
-    "eslint-config-next": "15.5.7"
+    "@eslint/eslintrc": "^3.3.6",
+    "eslint": "^9.39.5",
+    "eslint-config-next": "^16.2.10"
   }
 }

@@ -18,7 +18,7 @@ export async function GET(request) {
     await connectDB();
     const products = await Product.find()
       .populate('category', 'name slug')
-      .select('_id name slug price images category featured stock isActive specifications minOrderQuantity createdAt') // Only select needed fields
+      .select('_id name slug description price images category featured stock isActive specifications minOrderQuantity unit attributes variants createdAt') // Full fields needed for admin edit pre-fill (incl. description + variants)
       .sort({ createdAt: -1 })
       .lean();
 
