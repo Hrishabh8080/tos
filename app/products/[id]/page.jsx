@@ -6,6 +6,7 @@ import Header from '@/components/Header/Header';
 import Footer from '@/components/Footer/Footer';
 import Icon from '@/components/ui/Icon';
 import ProductCard from '@/components/ui/ProductCard';
+import SmartImage from '@/components/ui/SmartImage';
 import VariantSelector from '@/components/products/VariantSelector';
 import { deduplicatedFetch } from '@/lib/utils/fetchCache';
 import {
@@ -327,13 +328,19 @@ export default function ProductDetailPage() {
                   onMouseLeave={() => setZoom({ active: false, x: 50, y: 50 })}
                 >
                   {mainImage ? (
-                    /* eslint-disable-next-line @next/next/no-img-element */
-                    <img
+                    <SmartImage
+                      key={mainImage}
                       src={mainImage}
                       alt={product.name}
-                      className={styles.mainImage}
-                      style={zoom.active ? { transform: 'scale(1.9)', transformOrigin: `${zoom.x}% ${zoom.y}%` } : undefined}
-                      onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                      fill
+                      priority
+                      sizes="(max-width: 980px) 94vw, 560px"
+                      objectFit="contain"
+                      imgStyle={{ padding: 26, boxSizing: 'border-box' }}
+                      wrapStyle={zoom.active
+                        ? { transform: `scale(1.9)`, transformOrigin: `${zoom.x}% ${zoom.y}%`, transition: 'transform .12s ease-out' }
+                        : { transition: 'transform .2s ease-out' }}
+                      fallback={<div className={styles.noImage}><span>TOS</span></div>}
                     />
                   ) : (
                     <div className={styles.noImage}><span>TOS</span></div>
@@ -354,8 +361,14 @@ export default function ProductDetailPage() {
                         onClick={() => setSelectedImageIndex(index)}
                         aria-label={`View image ${index + 1}`}
                       >
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={image.url} alt={`${product.name} ${index + 1}`} onError={(e) => { e.currentTarget.style.opacity = 0.2; }} />
+                        <SmartImage
+                          src={image.url}
+                          alt={`${product.name} ${index + 1}`}
+                          fill
+                          sizes="80px"
+                          objectFit="contain"
+                          imgStyle={{ padding: 8, boxSizing: 'border-box' }}
+                        />
                       </button>
                     ))}
                   </div>

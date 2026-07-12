@@ -48,8 +48,8 @@
 }
 .card:hover .quickView { opacity: 1; transform: translate(-50%, 0); }
 .quickView:hover { background: var(--secondary); color: #fff; border-color: var(--secondary); }
-.img { object-fit: cover; transition: transform .5s var(--ease); }
-.card:hover .img { transform: scale(1.07); }
+.mediaImg { transition: transform .5s var(--ease); }
+.card:hover .mediaImg { transform: scale(1.07); }
 
 .fallback {
   position: absolute;

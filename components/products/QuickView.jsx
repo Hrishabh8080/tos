@@ -4,6 +4,7 @@ import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import css from "./QuickView.module.css";
 import Icon from "@/components/ui/Icon";
+import SmartImage from "@/components/ui/SmartImage";
 import { deduplicatedFetch } from "@/lib/utils/fetchCache";
 import {
   getAttributes, getVariants, getDefaultSelection, findVariant, firstVariantWithValue,
@@ -90,8 +91,15 @@ export default function QuickView({ productId, onClose }) {
             <div className={css.body}>
               <div className={css.media}>
                 {img ? (
-                  /* eslint-disable-next-line @next/next/no-img-element */
-                  <img src={img} alt={product.name} />
+                  <SmartImage
+                    src={img}
+                    alt={product.name}
+                    fill
+                    sizes="(max-width: 720px) 100vw, 430px"
+                    objectFit="contain"
+                    imgStyle={{ padding: 28, boxSizing: "border-box" }}
+                    fallback={<div className={css.noImg}><span>TOS</span></div>}
+                  />
                 ) : (
                   <div className={css.noImg}><span>TOS</span></div>
                 )}

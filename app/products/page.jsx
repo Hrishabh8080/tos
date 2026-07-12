@@ -4,8 +4,12 @@ import Link from 'next/link';
 import Header from '@/components/Header/Header';
 import Footer from '@/components/Footer/Footer';
 import Icon from '@/components/ui/Icon';
+import dynamic from 'next/dynamic';
 import ProductCard from '@/components/ui/ProductCard';
-import QuickView from '@/components/products/QuickView';
+import HScroll from '@/components/ui/HScroll';
+
+// Lazy-load the Quick View modal (and its framer-motion dep) only when opened
+const QuickView = dynamic(() => import('@/components/products/QuickView'), { ssr: false });
 import { deduplicatedFetch } from '@/lib/utils/fetchCache';
 import { getPriceRange } from '@/lib/utils/variants';
 import { titleCase } from '@/lib/utils/format';
@@ -247,16 +251,18 @@ export default function ProductsPage() {
       {categories.length > 0 && (
         <div className={styles.catCards}>
           <div className={styles.catCardsInner}>
-            <button className={`${styles.catCard} ${selectedCategories.length === 0 ? styles.catCardOn : ''}`} onClick={() => setSelectedCategories([])}>
-              <span className={styles.catIcon}><Icon name="layers" size={22} /></span>
-              <b>All Products</b><em>{products.length} items</em>
-            </button>
-            {categories.map((c) => c && c._id ? (
-              <button key={c._id} className={`${styles.catCard} ${selectedCategories.includes(c._id) ? styles.catCardOn : ''}`} onClick={() => toggleCategory(c._id)}>
-                <span className={styles.catIcon}><Icon name={selectedCategories.includes(c._id) ? 'check' : 'box'} size={22} /></span>
-                <b>{titleCase(c.name)}</b><em>{categoryCounts[c._id] || 0} items</em>
+            <HScroll className={styles.catCardsTrack}>
+              <button className={`${styles.catCard} ${selectedCategories.length === 0 ? styles.catCardOn : ''}`} onClick={() => setSelectedCategories([])}>
+                <span className={styles.catIcon}><Icon name="layers" size={22} /></span>
+                <b>All Products</b><em>{products.length} items</em>
               </button>
-            ) : null)}
+              {categories.map((c) => c && c._id ? (
+                <button key={c._id} className={`${styles.catCard} ${selectedCategories.includes(c._id) ? styles.catCardOn : ''}`} onClick={() => toggleCategory(c._id)}>
+                  <span className={styles.catIcon}><Icon name={selectedCategories.includes(c._id) ? 'check' : 'box'} size={22} /></span>
+                  <b>{titleCase(c.name)}</b><em>{categoryCounts[c._id] || 0} items</em>
+                </button>
+              ) : null)}
+            </HScroll>
           </div>
         </div>
       )}
@@ -313,7 +319,7 @@ export default function ProductsPage() {
             </div>
           ) : filtered.length > 0 ? (
             <div className={styles.grid}>
-              {filtered.map((p) => <ProductCard key={p._id} product={p} onQuickView={setQuickViewId} />)}
+              {filtered.map((p, i) => <ProductCard key={p._id} product={p} onQuickView={setQuickViewId} priority={i < 4} />)}
             </div>
           ) : (
             <div className={styles.empty}>

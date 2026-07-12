@@ -276,13 +276,12 @@
 .tstUser span { font-size: .82rem; color: var(--text-3); }
 
 /* ---------------- BULK BANNER ---------------- */
-.bulk { padding: 40px 0; }
+.bulk { padding: 40px 24px; }
 .bulkInner {
   position: relative;
   overflow: hidden;
   max-width: var(--container-wide);
   margin-inline: auto;
-  margin-inline: 24px;
   border-radius: var(--r-xl);
   background: var(--grad-primary);
   color: #fff;
@@ -333,7 +332,8 @@
 @media (max-width: 680px) {
   .section { padding: 60px 0; }
   .whyGrid, .railGrid, .indGrid, .howGrid, .tstGrid, .statsGrid { grid-template-columns: 1fr; }
-  .bulkInner { padding: 38px 26px; margin-inline: 16px; }
+  .bulk { padding: 32px 16px; }
+  .bulkInner { padding: 38px 26px; }
   .ctaCard { padding: 34px 20px; }
   .heroTrust { gap: 12px; }
   /* Get in Touch — stack channels full-width & centered */

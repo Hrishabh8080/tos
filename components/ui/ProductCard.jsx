@@ -1,9 +1,9 @@
 "use client";
-import { useState, memo } from "react";
+import { memo } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import css from "./ProductCard.module.css";
 import Icon from "./Icon";
+import SmartImage from "./SmartImage";
 import { getVariants, getPriceRange, getOptionPreview, formatINR } from "@/lib/utils/variants";
 import { titleCase } from "@/lib/utils/format";
 
@@ -11,14 +11,12 @@ import { titleCase } from "@/lib/utils/format";
  * Premium, variant-aware product card. Reused across Home / Category / Related.
  * Gracefully falls back to a "TOS" wordmark when no image is available.
  */
-function ProductCard({ product, onQuickView }) {
-  const [imgError, setImgError] = useState(false);
+function ProductCard({ product, onQuickView, priority = false }) {
   if (!product || !product._id) return null;
 
   const id = String(product._id);
   const href = `/products/${id}`;
   const img = product.images?.[0]?.url;
-  const showImage = img && !imgError;
 
   const variants = getVariants(product);
   const range = getPriceRange(product);
@@ -32,14 +30,15 @@ function ProductCard({ product, onQuickView }) {
     <article className={css.card}>
       <div className={css.mediaWrap}>
         <Link href={href} className={css.media} aria-label={product.name}>
-          {showImage ? (
-            <Image
+          {img ? (
+            <SmartImage
               src={img}
               alt={product.name || "Product"}
               fill
               sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 280px"
-              className={css.img}
-              onError={() => setImgError(true)}
+              priority={priority}
+              wrapClassName={css.mediaImg}
+              fallback={<div className={css.fallback}><span>TOS</span></div>}
             />
           ) : (
             <div className={css.fallback}><span>TOS</span></div>

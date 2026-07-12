@@ -34,10 +34,10 @@
 /* ---- Category cards ---- */
 .catCards { border-bottom: 1px solid var(--line); background: #fff; }
 .catCardsInner {
+  position: relative;
   max-width: var(--container-wide); margin-inline: auto; padding: 14px 24px;
-  display: flex; gap: 12px; overflow-x: auto; scrollbar-width: none;
 }
-.catCardsInner::-webkit-scrollbar { display: none; }
+.catCardsTrack { padding: 2px 0; }
 .catCard {
   flex-shrink: 0;
   display: flex; flex-direction: column; align-items: flex-start; gap: 3px;
@@ -166,10 +166,6 @@
   .layout { grid-template-columns: 1fr; padding-top: 22px; }
   .sidebar { display: none; }
   .mobFilterBtn { display: inline-flex; }
-}
-@media (max-width: 720px) {
-  /* categories are reachable via the Filters drawer on mobile — hide the tall cards row so results show sooner */
-  .catCards { display: none; }
 }
 @media (max-width: 640px) {
   .hero { padding: 26px 0 32px; }

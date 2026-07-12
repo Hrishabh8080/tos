@@ -2,6 +2,7 @@ import css from "./Home.module.css";
 import SectionHeading from "@/components/ui/SectionHeading";
 import Icon from "@/components/ui/Icon";
 import { Stagger, StaggerItem } from "@/components/ui/Reveal";
+import SmartImage from "@/components/ui/SmartImage";
 import { TESTIMONIALS } from "@/lib/site";
 
 export default function Testimonials() {
@@ -25,8 +26,7 @@ export default function Testimonials() {
               </div>
               <p className={css.tstQuote}>{t.quote}</p>
               <div className={css.tstUser}>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={`/avatars/${t.avatar}`} alt={t.name} className={css.tstAvatar} loading="lazy" />
+                <SmartImage src={`/avatars/${t.avatar}`} alt={t.name} width={48} height={48} sizes="48px" wrapClassName={css.tstAvatar} />
                 <div>
                   <b>{t.name}</b>
                   <span>{t.role}</span>
