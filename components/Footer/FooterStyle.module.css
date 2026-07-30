@@ -107,6 +107,30 @@
 }
 .gst { color: rgba(255, 255, 255, .55); }
 
+/* Designer credit */
+.credit {
+  border-top: 1px solid rgba(255, 255, 255, .05);
+  padding: 14px 24px 18px;
+  text-align: center;
+}
+.credit p {
+  margin: 0;
+  font-size: .72rem;
+  letter-spacing: .02em;
+  color: rgba(255, 255, 255, .38);
+}
+.credit a {
+  color: rgba(255, 255, 255, .48);
+  font-weight: 500;
+  text-decoration: none;
+  transition: color .3s ease;
+}
+.credit a:hover,
+.credit a:focus-visible {
+  color: rgba(255, 255, 255, .78);
+  outline: none;
+}
+
 @media (max-width: 900px) {
   .grid { grid-template-columns: 1fr 1fr; gap: 34px; }
   .about { grid-column: 1 / -1; }

@@ -92,6 +92,19 @@ const Footer = () => {
           <p className={CSS.gst}>GSTIN: {SITE.gstin} · Authorized Wholesale Distributor</p>
         </div>
       </div>
+
+      <div className={CSS.credit}>
+        <p>
+          Designed &amp; Developed by{" "}
+          <a
+            href="https://www.bytechalk.com"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            ByteChalk
+          </a>
+        </p>
+      </div>
     </footer>
   );
 };
