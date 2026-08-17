@@ -46,6 +46,11 @@ export const metadata = {
   },
   robots: { index: true, follow: true },
   alternates: { canonical: SITE.url },
+  icons: {
+    icon: "/favicon.ico",
+    shortcut: "/favicon.ico",
+    apple: "/favicon.ico",
+  },
 };
 
 export const viewport = {
